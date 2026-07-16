@@ -22,7 +22,7 @@
     "@nestjs/microservices": "11.1.28",
     "@nestjs/platform-express": "11.1.28",
     "amqplib": "2.0.1",
-    "pdfkit": "0.17.2",
+    "pdfkit": "0.19.1",
     "pg": "8.16.3",
     "qrcode": "1.5.4",
     "reflect-metadata": "0.2.2",
