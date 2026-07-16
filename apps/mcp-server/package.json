@@ -1,0 +1,28 @@
+{
+  "name": "@bus/mcp-server",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@bus/contracts-proto": "workspace:*",
+    "@bus/observability": "workspace:*",
+    "@grpc/grpc-js": "1.14.4",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "5.2.1",
+    "redis": "5.8.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "26.1.1",
+    "tsx": "4.23.0",
+    "typescript": "5.9.3"
+  }
+}

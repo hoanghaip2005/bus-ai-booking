@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bus.local/contracts/events/search-performed-v1.schema.json",
+  "title": "SearchPerformedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "traceId",
+    "producer",
+    "searchSessionId",
+    "actorCategory",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "SearchPerformedV1" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+    "producer": { "const": "catalog-service" },
+    "searchSessionId": { "type": "string", "format": "uuid" },
+    "actorCategory": {
+      "enum": ["GUEST", "CUSTOMER", "STAFF", "ADMIN", "SYSTEM"]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originLocationId",
+        "destinationLocationId",
+        "travelDate",
+        "operatorCodes",
+        "vehicleTypeCodes",
+        "sort",
+        "resultCount",
+        "nearestDateCount",
+        "cacheStatus"
+      ],
+      "properties": {
+        "originLocationId": { "type": "string", "format": "uuid" },
+        "destinationLocationId": { "type": "string", "format": "uuid" },
+        "travelDate": { "type": "string", "format": "date" },
+        "departureTimeFrom": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+        "departureTimeTo": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+        "minPriceVnd": { "type": "integer", "minimum": 0 },
+        "maxPriceVnd": { "type": "integer", "minimum": 0 },
+        "operatorCodes": {
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z0-9-]{1,32}$" }
+        },
+        "vehicleTypeCodes": {
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z0-9-]{1,32}$" }
+        },
+        "minimumRemainingSeats": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "sort": {
+          "enum": ["DEPARTURE_EARLIEST", "PRICE_LOWEST", "DURATION_SHORTEST"]
+        },
+        "resultCount": { "type": "integer", "minimum": 0 },
+        "nearestDateCount": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "cacheStatus": { "enum": ["HIT", "MISS", "BYPASS"] }
+      }
+    }
+  }
+}

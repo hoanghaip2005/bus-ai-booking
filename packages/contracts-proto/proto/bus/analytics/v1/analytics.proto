@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package bus.analytics.v1;
+
+service AnalyticsQueryService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc GetRevenueSummary(GetRevenueSummaryRequest) returns (GetRevenueSummaryResponse);
+  rpc GetPopularRoutes(GetPopularRoutesRequest) returns (GetPopularRoutesResponse);
+  rpc GetPublicPopularRoutes(GetPublicPopularRoutesRequest) returns (GetPublicPopularRoutesResponse);
+  rpc GetSearchConversion(GetSearchConversionRequest) returns (GetSearchConversionResponse);
+  rpc GetTicketSalesByRoute(GetTicketSalesByRouteRequest) returns (GetTicketSalesByRouteResponse);
+  rpc GetPaymentSummary(GetPaymentSummaryRequest) returns (GetPaymentSummaryResponse);
+}
+
+message GetPublicPopularRoutesRequest {
+  string from_date = 1;
+  string to_date = 2;
+  int32 limit = 3;
+  string request_id = 4;
+}
+
+message GetPublicPopularRoutesResponse {
+  repeated PublicPopularRoute routes = 1;
+  string from_date = 2;
+  string to_date = 3;
+  optional string last_processed_at = 4;
+  string timezone = 5;
+  string request_id = 6;
+}
+
+message PublicPopularRoute {
+  string route_id = 1;
+  string route_code = 2;
+  string route_label = 3;
+  int32 search_count = 4;
+}
+
+message GetTicketSalesByRouteRequest {
+  string from_date = 1;
+  string to_date = 2;
+  int32 limit = 3;
+  string request_id = 4;
+}
+
+message GetTicketSalesByRouteResponse {
+  repeated RouteTicketSales routes = 1;
+  optional string last_processed_at = 2;
+  string timezone = 3;
+  string request_id = 4;
+}
+
+message RouteTicketSales {
+  string route_id = 1;
+  string route_code = 2;
+  string route_label = 3;
+  int32 paid_booking_count = 4;
+  int32 ticket_count = 5;
+  int64 revenue_vnd = 6;
+}
+
+message GetPaymentSummaryRequest {
+  string from_date = 1;
+  string to_date = 2;
+  string request_id = 3;
+}
+
+message GetPaymentSummaryResponse {
+  int32 attempt_count = 1;
+  int32 succeeded_count = 2;
+  int32 failed_count = 3;
+  double success_rate = 4;
+  int64 succeeded_amount_vnd = 5;
+  ConsumerLag consumer_lag = 6;
+  optional string last_processed_at = 7;
+  string timezone = 8;
+  string request_id = 9;
+}
+
+message ConsumerLag {
+  bool available = 1;
+  int64 total_lag = 2;
+  repeated TopicLag topics = 3;
+}
+
+message TopicLag {
+  string topic = 1;
+  int64 lag = 2;
+}
+
+message GetPopularRoutesRequest {
+  string from_date = 1;
+  string to_date = 2;
+  int32 limit = 3;
+  string request_id = 4;
+}
+
+message GetPopularRoutesResponse {
+  repeated PopularRoute routes = 1;
+  optional string last_processed_at = 2;
+  string timezone = 3;
+  string request_id = 4;
+}
+
+message PopularRoute {
+  string route_id = 1;
+  string route_code = 2;
+  string route_label = 3;
+  int32 search_count = 4;
+  int32 paid_booking_count = 5;
+  double conversion_rate = 6;
+}
+
+message GetSearchConversionRequest {
+  string from_date = 1;
+  string to_date = 2;
+  string request_id = 3;
+}
+
+message GetSearchConversionResponse {
+  int32 search_count = 1;
+  int32 paid_booking_count = 2;
+  double conversion_rate = 3;
+  optional string last_processed_at = 4;
+  string timezone = 5;
+  string request_id = 6;
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string checked_at = 5;
+  string trace_id = 6;
+}
+
+message GetRevenueSummaryRequest {
+  string from_date = 1;
+  string to_date = 2;
+  string request_id = 3;
+}
+
+message GetRevenueSummaryResponse {
+  repeated DailyRevenue days = 1;
+  int64 total_revenue_vnd = 2;
+  int32 paid_booking_count = 3;
+  int32 ticket_count = 4;
+  optional string last_processed_at = 5;
+  string timezone = 6;
+  string request_id = 7;
+}
+
+message DailyRevenue {
+  string local_date = 1;
+  int64 revenue_vnd = 2;
+  int32 paid_booking_count = 3;
+  int32 ticket_count = 4;
+}

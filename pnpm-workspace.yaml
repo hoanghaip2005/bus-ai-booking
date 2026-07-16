@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+allowBuilds:
+  '@apollo/protobufjs': true
+  '@bufbuild/buf': true
+  '@nestjs/core': true
+  esbuild: true
+  protobufjs: true
+  sharp: true
+
+overrides:
+  '@modelcontextprotocol/sdk>ajv': 8.18.0
+  'ajv-formats>ajv': 8.18.0
+  postcss: 8.5.17
+  ws: 8.21.0

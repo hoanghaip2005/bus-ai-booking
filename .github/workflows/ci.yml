@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate and validate contracts
+        run: pnpm test:contract
+
+      - name: Static checks
+        run: pnpm check
+
+      - name: Unit tests
+        run: pnpm test:unit
+
+      - name: Production build
+        run: pnpm build
+
+      - name: Release dashboard contract
+        run: pnpm test:release-dashboard
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+
+  integration-smoke:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start infrastructure
+        run: |
+          pnpm env:up
+          pnpm env:wait
+          pnpm db:migrate
+          pnpm db:seed
+
+      - name: Run end-to-end foundation smoke
+        env:
+          OTEL_SDK_DISABLED: 'false'
+        run: |
+          pnpm dev > app.log 2>&1 &
+          app_pid=$!
+          trap 'kill $app_pid || true' EXIT
+          node scripts/wait-for-apps.mjs
+          pnpm test:smoke
+          pnpm test:integration
+          pnpm test:e2e
+          pnpm test:mcp-load
+          pnpm test:backup-restore
+
+      - name: Upload application logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundation-smoke-logs
+          path: app.log
+
+      - name: Stop infrastructure
+        if: always()
+        run: pnpm env:down

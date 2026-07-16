@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bus.local/contracts/events/booking-expired-v1.schema.json",
+  "title": "BookingExpiredV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "traceId",
+    "requestId",
+    "producer",
+    "aggregateId",
+    "actorCategory",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "BookingExpiredV1" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "producer": { "const": "booking-service" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "actorCategory": { "enum": ["GUEST", "CUSTOMER", "STAFF", "ADMIN", "SYSTEM"] },
+    "checkoutSessionId": { "type": "string", "format": "uuid" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bookingId",
+        "tripId",
+        "routeId",
+        "routeCode",
+        "seatIds",
+        "passengerCount",
+        "totalPriceVnd",
+        "expiredAt",
+        "reason",
+        "status"
+      ],
+      "properties": {
+        "bookingId": { "type": "string", "format": "uuid" },
+        "tripId": { "type": "string", "format": "uuid" },
+        "routeId": { "type": "string", "format": "uuid" },
+        "routeCode": { "type": "string", "pattern": "^[A-Z0-9-]{1,32}$" },
+        "seatIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" }
+        },
+        "passengerCount": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "totalPriceVnd": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+        "expiredAt": { "type": "string", "format": "date-time" },
+        "reason": { "enum": ["HOLD_EXPIRED", "DEPARTURE_REACHED"] },
+        "status": { "const": "EXPIRED" }
+      }
+    }
+  }
+}

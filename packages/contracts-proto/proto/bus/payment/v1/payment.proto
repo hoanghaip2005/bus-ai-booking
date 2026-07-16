@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package bus.payment.v1;
+
+service PaymentService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc CreatePaymentAttempt(CreatePaymentAttemptRequest) returns (CreatePaymentAttemptResponse);
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string checked_at = 5;
+  string trace_id = 6;
+}
+
+message PaymentOwner {
+  PaymentOwnerType type = 1;
+  string id = 2;
+}
+
+enum PaymentOwnerType {
+  PAYMENT_OWNER_TYPE_UNSPECIFIED = 0;
+  PAYMENT_OWNER_TYPE_GUEST_SESSION = 1;
+  PAYMENT_OWNER_TYPE_CUSTOMER = 2;
+}
+
+message CreatePaymentAttemptRequest {
+  string booking_id = 1;
+  PaymentOwner owner = 2;
+  int32 amount_vnd = 3;
+  RequestedPaymentOutcome requested_outcome = 4;
+  string idempotency_key = 5;
+  string request_id = 6;
+}
+
+message CreatePaymentAttemptResponse {
+  PaymentAttempt attempt = 1;
+  string request_id = 2;
+}
+
+message PaymentAttempt {
+  string id = 1;
+  string booking_id = 2;
+  PaymentAttemptStatus status = 3;
+  int32 amount_vnd = 4;
+  optional string failure_code = 5;
+  string created_at = 6;
+}
+
+enum RequestedPaymentOutcome {
+  REQUESTED_PAYMENT_OUTCOME_UNSPECIFIED = 0;
+  REQUESTED_PAYMENT_OUTCOME_SUCCESS = 1;
+  REQUESTED_PAYMENT_OUTCOME_FAILURE = 2;
+}
+
+enum PaymentAttemptStatus {
+  PAYMENT_ATTEMPT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_ATTEMPT_STATUS_SUCCEEDED = 1;
+  PAYMENT_ATTEMPT_STATUS_FAILED = 2;
+}

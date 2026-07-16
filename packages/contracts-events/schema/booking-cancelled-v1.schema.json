@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://benviet.vn/schemas/booking-cancelled-v1.schema.json",
+  "title": "BookingCancelledV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "traceId",
+    "requestId",
+    "producer",
+    "aggregateId",
+    "actorCategory",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "BookingCancelledV1" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "producer": { "const": "booking-service" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "actorCategory": { "const": "CUSTOMER" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bookingId",
+        "tripId",
+        "routeId",
+        "routeCode",
+        "seatIds",
+        "passengerCount",
+        "totalPriceVnd",
+        "cancelledAt",
+        "policyCode",
+        "status"
+      ],
+      "properties": {
+        "bookingId": { "type": "string", "format": "uuid" },
+        "tripId": { "type": "string", "format": "uuid" },
+        "routeId": { "type": "string", "format": "uuid" },
+        "routeCode": { "type": "string", "minLength": 1 },
+        "seatIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "passengerCount": { "type": "integer", "minimum": 1 },
+        "totalPriceVnd": { "type": "integer", "minimum": 0 },
+        "cancelledAt": { "type": "string", "format": "date-time" },
+        "policyCode": { "const": "BEFORE_DEPARTURE_FULL_RELEASE" },
+        "status": { "const": "CANCELLED" }
+      }
+    }
+  }
+}

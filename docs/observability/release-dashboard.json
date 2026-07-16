@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "dashboardId": "bus-platform-release",
+  "title": "Intercity Bus Platform - Release",
+  "refreshSeconds": 30,
+  "owner": "platform",
+  "panels": [
+    {
+      "id": "mcp-tools",
+      "title": "MCP tool outcomes",
+      "metric": "mcp_tool_calls_total",
+      "groupBy": ["tool", "outcome"],
+      "alert": { "condition": "forbidden_or_dependency_rate > 0.20", "windowMinutes": 5 }
+    },
+    {
+      "id": "mcp-resources",
+      "title": "MCP resource reads",
+      "metric": "mcp_resource_reads_total",
+      "groupBy": ["resource", "outcome"],
+      "alert": { "condition": "no_success_samples_for_5m", "windowMinutes": 5 }
+    },
+    {
+      "id": "mcp-rate-limits",
+      "title": "MCP rate-limit outcomes",
+      "metric": "mcp_rate_limit_total",
+      "groupBy": ["bucket", "outcome"],
+      "alert": { "condition": "unavailable > 0", "windowMinutes": 5 }
+    },
+    {
+      "id": "worker-delivery",
+      "title": "Outbox and consumer delivery",
+      "metric": "bus.worker.outbox.published",
+      "relatedMetrics": [
+        "bus.worker.outbox.retry",
+        "bus.worker.outbox.dead_lettered",
+        "bus.worker.consumer.processed",
+        "bus.worker.consumer.retry",
+        "bus.worker.consumer.dead_lettered"
+      ],
+      "groupBy": ["service", "destination", "event_type"],
+      "alert": { "condition": "dead_lettered > 0", "windowMinutes": 5 }
+    },
+    {
+      "id": "business-flow",
+      "title": "Booking fulfillment",
+      "metric": "bus.ticket.issued",
+      "relatedMetrics": [
+        "bus.notification.email.sent_simulated",
+        "bus.booking.expiry.reconcile_failed"
+      ],
+      "groupBy": ["service"],
+      "alert": { "condition": "expiry_reconcile_failed > 0", "windowMinutes": 5 }
+    }
+  ]
+}

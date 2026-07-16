@@ -1,0 +1,38 @@
+{
+  "name": "@bus/contracts-events",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./search-performed-v1.schema.json": "./schema/search-performed-v1.schema.json",
+    "./search-performed-v2.schema.json": "./schema/search-performed-v2.schema.json",
+    "./seat-status-changed-v1.schema.json": "./schema/seat-status-changed-v1.schema.json",
+    "./seat-status-changed-v2.schema.json": "./schema/seat-status-changed-v2.schema.json",
+    "./booking-created-v1.schema.json": "./schema/booking-created-v1.schema.json",
+    "./booking-paid-v1.schema.json": "./schema/booking-paid-v1.schema.json",
+    "./booking-expired-v1.schema.json": "./schema/booking-expired-v1.schema.json",
+    "./payment-attempted-v1.schema.json": "./schema/payment-attempted-v1.schema.json"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "node scripts/validate-schema.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
+    "typescript": "5.9.3"
+  }
+}

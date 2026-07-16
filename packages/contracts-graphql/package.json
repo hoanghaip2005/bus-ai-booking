@@ -1,0 +1,26 @@
+{
+  "name": "@bus/contracts-graphql",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "exports": {
+    "./schema": "./schema.graphql",
+    "./generated": "./src/generated.ts"
+  },
+  "scripts": {
+    "generate": "graphql-codegen --config codegen.ts",
+    "lint": "graphql-codegen --config codegen.ts --check",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "graphql": "16.11.0"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "7.2.0",
+    "@graphql-codegen/typescript": "6.1.0",
+    "@graphql-codegen/typescript-resolvers": "6.1.0",
+    "typescript": "5.9.3"
+  }
+}

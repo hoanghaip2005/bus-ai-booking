@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package bus.identity.v1;
+
+service IdentityService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ValidateAccessToken(ValidateAccessTokenRequest) returns (ValidateAccessTokenResponse);
+  rpc ListPassengerProfiles(ListPassengerProfilesRequest) returns (ListPassengerProfilesResponse);
+  rpc CreatePassengerProfile(CreatePassengerProfileRequest) returns (CreatePassengerProfileResponse);
+  rpc UpdatePassengerProfile(UpdatePassengerProfileRequest) returns (UpdatePassengerProfileResponse);
+  rpc DeletePassengerProfile(DeletePassengerProfileRequest) returns (DeletePassengerProfileResponse);
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string trace_id = 5;
+  string checked_at = 6;
+}
+
+enum IdentityRole {
+  IDENTITY_ROLE_UNSPECIFIED = 0;
+  IDENTITY_ROLE_CUSTOMER = 1;
+  IDENTITY_ROLE_STAFF = 2;
+  IDENTITY_ROLE_ADMIN = 3;
+}
+
+message IdentityUser {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  IdentityRole role = 4;
+}
+
+message AuthSession {
+  string access_token = 1;
+  string refresh_token = 2;
+  string access_expires_at = 3;
+  string refresh_expires_at = 4;
+  IdentityUser user = 5;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string request_id = 3;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+  string request_id = 2;
+}
+
+message LoginResponse {
+  AuthSession session = 1;
+  string request_id = 2;
+}
+
+message RefreshResponse {
+  AuthSession session = 1;
+  string request_id = 2;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+  string request_id = 2;
+}
+
+message LogoutResponse {
+  bool revoked = 1;
+  string request_id = 2;
+}
+
+message ValidateAccessTokenRequest {
+  string access_token = 1;
+  string request_id = 2;
+}
+
+message AuthenticatedActor {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  IdentityRole role = 4;
+  string token_id = 5;
+  string expires_at = 6;
+}
+
+message ValidateAccessTokenResponse {
+  AuthenticatedActor actor = 1;
+  string request_id = 2;
+}
+
+message PassengerProfile {
+  string id = 1;
+  string label = 2;
+  string full_name = 3;
+  optional string phone = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+message PassengerProfileInput {
+  string label = 1;
+  string full_name = 2;
+  optional string phone = 3;
+}
+
+message ListPassengerProfilesRequest {
+  string request_id = 1;
+}
+
+message ListPassengerProfilesResponse {
+  repeated PassengerProfile profiles = 1;
+  string request_id = 2;
+}
+
+message CreatePassengerProfileRequest {
+  PassengerProfileInput input = 1;
+  string request_id = 2;
+}
+
+message UpdatePassengerProfileRequest {
+  string profile_id = 1;
+  PassengerProfileInput input = 2;
+  string request_id = 3;
+}
+
+message CreatePassengerProfileResponse {
+  PassengerProfile profile = 1;
+  string request_id = 2;
+}
+
+message UpdatePassengerProfileResponse {
+  PassengerProfile profile = 1;
+  string request_id = 2;
+}
+
+message DeletePassengerProfileRequest {
+  string profile_id = 1;
+  string request_id = 2;
+}
+
+message DeletePassengerProfileResponse {
+  string profile_id = 1;
+  bool deleted = 2;
+  string request_id = 3;
+}

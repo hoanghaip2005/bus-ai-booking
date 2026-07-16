@@ -1,0 +1,485 @@
+syntax = "proto3";
+
+package bus.catalog.v1;
+
+service CatalogQueryService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc SuggestLocations(SuggestLocationsRequest) returns (SuggestLocationsResponse);
+  rpc SearchTrips(SearchTripsRequest) returns (SearchTripsResponse);
+  rpc GetTrip(GetTripRequest) returns (GetTripResponse);
+}
+
+service CatalogAdminService {
+  rpc SetTripActive(SetTripActiveRequest) returns (SetTripActiveResponse);
+  rpc TransitionTripStatus(TransitionTripStatusRequest) returns (TransitionTripStatusResponse);
+  rpc ListTripPreparationOptions(ListTripPreparationOptionsRequest) returns (ListTripPreparationOptionsResponse);
+  rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse);
+  rpc GetAdminCatalog(GetAdminCatalogRequest) returns (GetAdminCatalogResponse);
+  rpc SaveLocation(SaveLocationRequest) returns (SaveLocationResponse);
+  rpc SaveRoute(SaveRouteRequest) returns (SaveRouteResponse);
+  rpc SaveVehicle(SaveVehicleRequest) returns (SaveVehicleResponse);
+  rpc SaveSeatLayout(SaveSeatLayoutRequest) returns (SaveSeatLayoutResponse);
+  rpc UpdateTrip(UpdateTripRequest) returns (UpdateTripResponse);
+  rpc SetCatalogResourceActive(SetCatalogResourceActiveRequest) returns (SetCatalogResourceActiveResponse);
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string checked_at = 5;
+  string trace_id = 6;
+}
+
+message SuggestLocationsRequest {
+  string query = 1;
+  int32 limit = 2;
+  string request_id = 3;
+}
+
+message SuggestLocationsResponse {
+  repeated LocationSuggestion suggestions = 1;
+  string normalized_query = 2;
+  string request_id = 3;
+}
+
+message LocationSuggestion {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string normalized_name = 4;
+  LocationKind kind = 5;
+  optional string parent_location_id = 6;
+}
+
+enum LocationKind {
+  LOCATION_KIND_UNSPECIFIED = 0;
+  LOCATION_KIND_CITY = 1;
+  LOCATION_KIND_STATION = 2;
+}
+
+message SearchTripsRequest {
+  string origin_location_id = 1;
+  string destination_location_id = 2;
+  string travel_date = 3;
+  string request_id = 4;
+  optional string departure_time_from = 5;
+  optional string departure_time_to = 6;
+  optional int32 min_price_vnd = 7;
+  optional int32 max_price_vnd = 8;
+  repeated string operator_codes = 9;
+  repeated string vehicle_type_codes = 10;
+  optional int32 minimum_remaining_seats = 11;
+  TripSort sort = 12;
+  optional string search_session_id = 13;
+}
+
+message SearchTripsResponse {
+  repeated TripSummary trips = 1;
+  string timezone = 2;
+  string request_id = 3;
+  repeated string nearest_travel_dates = 4;
+}
+
+enum TripSort {
+  TRIP_SORT_UNSPECIFIED = 0;
+  TRIP_SORT_DEPARTURE_EARLIEST = 1;
+  TRIP_SORT_PRICE_LOWEST = 2;
+  TRIP_SORT_DURATION_SHORTEST = 3;
+}
+
+message TripSummary {
+  string id = 1;
+  string route_id = 2;
+  string operator_name = 3;
+  string vehicle_type_name = 4;
+  string vehicle_code = 5;
+  string origin_name = 6;
+  string destination_name = 7;
+  string pickup_name = 8;
+  string dropoff_name = 9;
+  string departure_at = 10;
+  string arrival_at = 11;
+  int32 duration_minutes = 12;
+  int32 price_vnd = 13;
+  int32 remaining_seats = 14;
+}
+
+message GetTripRequest {
+  string trip_id = 1;
+  string request_id = 2;
+}
+
+message GetTripResponse {
+  TripDetail trip = 1;
+  string timezone = 2;
+  string request_id = 3;
+}
+
+message TripDetail {
+  string id = 1;
+  string route_id = 2;
+  string route_code = 3;
+  string operator_name = 4;
+  string vehicle_type_name = 5;
+  string vehicle_code = 6;
+  string vehicle_plate = 7;
+  string origin_name = 8;
+  string destination_name = 9;
+  string departure_at = 10;
+  string arrival_at = 11;
+  int32 duration_minutes = 12;
+  int32 price_vnd = 13;
+  int32 remaining_seats = 14;
+  string status = 15;
+  repeated TripStop stops = 16;
+  SeatLayout seat_layout = 17;
+  repeated PolicyReference policies = 18;
+}
+
+message TripStop {
+  string id = 1;
+  string location_id = 2;
+  string name = 3;
+  TripStopKind kind = 4;
+  int32 stop_order = 5;
+  int32 offset_minutes = 6;
+  string scheduled_at = 7;
+}
+
+enum TripStopKind {
+  TRIP_STOP_KIND_UNSPECIFIED = 0;
+  TRIP_STOP_KIND_PICKUP = 1;
+  TRIP_STOP_KIND_DROPOFF = 2;
+  TRIP_STOP_KIND_BOTH = 3;
+}
+
+message SeatLayout {
+  string id = 1;
+  int32 version = 2;
+  string name = 3;
+  int32 deck_count = 4;
+  repeated SeatDefinition seats = 5;
+}
+
+message SeatDefinition {
+  string id = 1;
+  string label = 2;
+  int32 deck = 3;
+  int32 row = 4;
+  int32 column = 5;
+}
+
+message PolicyReference {
+  string code = 1;
+  string title = 2;
+  string summary = 3;
+  string resource_uri = 4;
+}
+
+message SetTripActiveRequest {
+  string trip_id = 1;
+  bool is_active = 2;
+  string request_id = 3;
+}
+
+message SetTripActiveResponse {
+  string trip_id = 1;
+  bool is_active = 2;
+  bool changed = 3;
+  string request_id = 4;
+}
+
+message TransitionTripStatusRequest {
+  string trip_id = 1;
+  string target_status = 2;
+  string idempotency_key = 3;
+  string request_id = 4;
+}
+
+message TransitionTripStatusResponse {
+  string trip_id = 1;
+  string previous_status = 2;
+  string status = 3;
+  bool changed = 4;
+  string transitioned_at = 5;
+  string request_id = 6;
+}
+
+message ListTripPreparationOptionsRequest {
+  string request_id = 1;
+}
+
+message ListTripPreparationOptionsResponse {
+  repeated AdminRouteOption routes = 1;
+  repeated AdminVehicleOption vehicles = 2;
+  string request_id = 3;
+}
+
+message AdminRouteOption {
+  string id = 1;
+  string code = 2;
+  string origin_name = 3;
+  string destination_name = 4;
+  int32 duration_minutes = 5;
+}
+
+message AdminVehicleOption {
+  string id = 1;
+  string code = 2;
+  string plate = 3;
+  string operator_name = 4;
+  string vehicle_type_name = 5;
+  string seat_layout_version_id = 6;
+  int32 seat_layout_version = 7;
+  string seat_layout_name = 8;
+}
+
+message CreateTripRequest {
+  string route_id = 1;
+  string vehicle_id = 2;
+  string seat_layout_version_id = 3;
+  string departure_at = 4;
+  string arrival_at = 5;
+  int32 price_vnd = 6;
+  string idempotency_key = 7;
+  string request_id = 8;
+}
+
+message CreateTripResponse {
+  string trip_id = 1;
+  string route_id = 2;
+  string vehicle_id = 3;
+  string seat_layout_version_id = 4;
+  string departure_at = 5;
+  string arrival_at = 6;
+  int32 price_vnd = 7;
+  string status = 8;
+  bool created = 9;
+  string created_at = 10;
+  string request_id = 11;
+}
+
+message GetAdminCatalogRequest {
+  string request_id = 1;
+}
+
+message GetAdminCatalogResponse {
+  repeated AdminLocation locations = 1;
+  repeated AdminOperator operators = 2;
+  repeated AdminVehicleType vehicle_types = 3;
+  repeated AdminSeatLayout seat_layouts = 4;
+  repeated AdminVehicle vehicles = 5;
+  repeated AdminRoute routes = 6;
+  repeated AdminTrip trips = 7;
+  string request_id = 8;
+}
+
+message AdminLocation {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  LocationKind kind = 4;
+  optional string parent_location_id = 5;
+  bool is_active = 6;
+}
+
+message AdminOperator {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  bool is_active = 4;
+}
+
+message AdminVehicleType {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  int32 seat_capacity = 4;
+}
+
+message AdminSeatLayout {
+  string id = 1;
+  string vehicle_type_id = 2;
+  int32 version = 3;
+  string name = 4;
+  int32 deck_count = 5;
+  string layout_json = 6;
+  bool is_active = 7;
+}
+
+message AdminVehicle {
+  string id = 1;
+  string code = 2;
+  string plate = 3;
+  string operator_id = 4;
+  string vehicle_type_id = 5;
+  string seat_layout_version_id = 6;
+  bool is_active = 7;
+}
+
+message AdminRouteStop {
+  string id = 1;
+  string location_id = 2;
+  int32 stop_order = 3;
+  TripStopKind stop_kind = 4;
+  int32 offset_minutes = 5;
+}
+
+message AdminRoute {
+  string id = 1;
+  string code = 2;
+  string origin_location_id = 3;
+  string destination_location_id = 4;
+  int32 duration_minutes = 5;
+  bool is_active = 6;
+  repeated AdminRouteStop stops = 7;
+}
+
+message AdminTrip {
+  string id = 1;
+  string route_id = 2;
+  string vehicle_id = 3;
+  string departure_at = 4;
+  string arrival_at = 5;
+  int32 price_vnd = 6;
+  string status = 7;
+  bool is_active = 8;
+}
+
+message SaveLocationRequest {
+  optional string id = 1;
+  string code = 2;
+  string name = 3;
+  LocationKind kind = 4;
+  optional string parent_location_id = 5;
+  string idempotency_key = 6;
+  string request_id = 7;
+}
+
+message SaveRouteRequest {
+  optional string id = 1;
+  string code = 2;
+  string origin_location_id = 3;
+  string destination_location_id = 4;
+  int32 duration_minutes = 5;
+  repeated AdminRouteStop stops = 6;
+  string idempotency_key = 7;
+  string request_id = 8;
+}
+
+message SaveVehicleRequest {
+  optional string id = 1;
+  string code = 2;
+  string plate = 3;
+  string operator_id = 4;
+  string vehicle_type_id = 5;
+  string seat_layout_version_id = 6;
+  string idempotency_key = 7;
+  string request_id = 8;
+}
+
+message SaveSeatLayoutRequest {
+  optional string id = 1;
+  string vehicle_type_id = 2;
+  int32 version = 3;
+  string name = 4;
+  int32 deck_count = 5;
+  string layout_json = 6;
+  string idempotency_key = 7;
+  string request_id = 8;
+}
+
+message UpdateTripRequest {
+  string id = 1;
+  string route_id = 2;
+  string vehicle_id = 3;
+  string seat_layout_version_id = 4;
+  string departure_at = 5;
+  string arrival_at = 6;
+  int32 price_vnd = 7;
+  string idempotency_key = 8;
+  string request_id = 9;
+}
+
+enum CatalogResourceType {
+  CATALOG_RESOURCE_TYPE_UNSPECIFIED = 0;
+  CATALOG_RESOURCE_TYPE_LOCATION = 1;
+  CATALOG_RESOURCE_TYPE_ROUTE = 2;
+  CATALOG_RESOURCE_TYPE_VEHICLE = 3;
+  CATALOG_RESOURCE_TYPE_SEAT_LAYOUT = 4;
+  CATALOG_RESOURCE_TYPE_TRIP = 5;
+}
+
+message SetCatalogResourceActiveRequest {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool is_active = 3;
+  string idempotency_key = 4;
+  string request_id = 5;
+}
+
+message SaveLocationResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}
+
+message SaveRouteResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}
+
+message SaveVehicleResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}
+
+message SaveSeatLayoutResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}
+
+message UpdateTripResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}
+
+message SetCatalogResourceActiveResponse {
+  CatalogResourceType resource_type = 1;
+  string id = 2;
+  bool created = 3;
+  bool changed = 4;
+  bool is_active = 5;
+  string updated_at = 6;
+  string request_id = 7;
+}

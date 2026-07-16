@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bus.local/contracts/events/seat-status-changed-v2.schema.json",
+  "title": "SeatStatusChangedV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "producer",
+    "tripId",
+    "seatIds",
+    "status",
+    "version"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "SeatStatusChangedV2" },
+    "eventVersion": { "const": 2 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "producer": { "const": "seat-inventory-service" },
+    "tripId": { "type": "string", "format": "uuid" },
+    "seatIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" }
+    },
+    "status": { "enum": ["BOOKED", "BLOCKED"] },
+    "version": { "type": "integer", "minimum": 1 }
+  }
+}

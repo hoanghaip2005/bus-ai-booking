@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bus.local/contracts/events/payment-attempted-v1.schema.json",
+  "title": "PaymentAttemptedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "traceId",
+    "requestId",
+    "producer",
+    "aggregateId",
+    "actorCategory",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "PaymentAttemptedV1" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+    "requestId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+    "producer": { "const": "payment-service" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "actorCategory": { "enum": ["GUEST", "CUSTOMER", "STAFF", "ADMIN", "SYSTEM"] },
+    "checkoutSessionId": { "type": "string", "format": "uuid" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paymentAttemptId", "bookingId", "requestedOutcome", "status", "amountVnd"],
+      "properties": {
+        "paymentAttemptId": { "type": "string", "format": "uuid" },
+        "bookingId": { "type": "string", "format": "uuid" },
+        "requestedOutcome": { "enum": ["SUCCESS", "FAILURE"] },
+        "status": { "enum": ["SUCCEEDED", "FAILED"] },
+        "amountVnd": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "failureCode": { "type": "string", "pattern": "^[A-Z0-9_]{1,64}$" }
+      }
+    }
+  }
+}

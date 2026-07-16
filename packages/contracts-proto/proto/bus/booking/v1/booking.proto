@@ -1,0 +1,341 @@
+syntax = "proto3";
+
+package bus.booking.v1;
+
+service BookingService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+  rpc SimulatePayment(SimulatePaymentRequest) returns (SimulatePaymentResponse);
+  rpc ListMyBookings(ListMyBookingsRequest) returns (ListMyBookingsResponse);
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse);
+  rpc GetFulfillmentSnapshot(GetFulfillmentSnapshotRequest) returns (GetFulfillmentSnapshotResponse);
+  rpc MarkTicketIssued(MarkTicketIssuedRequest) returns (MarkTicketIssuedResponse);
+  rpc StaffTicketLookup(StaffTicketLookupRequest) returns (StaffTicketLookupResponse);
+  rpc CheckInTicket(CheckInTicketRequest) returns (CheckInTicketResponse);
+  rpc GetAdminOperations(GetAdminOperationsRequest) returns (GetAdminOperationsResponse);
+  rpc GetGuestBookingLookup(GetGuestBookingLookupRequest) returns (GetGuestBookingLookupResponse);
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string checked_at = 5;
+  string trace_id = 6;
+}
+
+message CheckoutOwner {
+  CheckoutOwnerType type = 1;
+  string id = 2;
+}
+
+enum CheckoutOwnerType {
+  CHECKOUT_OWNER_TYPE_UNSPECIFIED = 0;
+  CHECKOUT_OWNER_TYPE_GUEST_SESSION = 1;
+  CHECKOUT_OWNER_TYPE_CUSTOMER = 2;
+}
+
+message BookingContactInput {
+  string full_name = 1;
+  string email = 2;
+  string phone = 3;
+}
+
+message BookingPassengerInput {
+  string seat_id = 1;
+  string full_name = 2;
+  optional string phone = 3;
+  optional string document_number = 4;
+}
+
+message CreateBookingRequest {
+  string hold_token = 1;
+  CheckoutOwner owner = 2;
+  BookingContactInput contact = 3;
+  repeated BookingPassengerInput passengers = 4;
+  string idempotency_key = 5;
+  string request_id = 6;
+}
+
+message CreateBookingResponse {
+  Booking booking = 1;
+  string request_id = 2;
+}
+
+message SimulatePaymentRequest {
+  string booking_id = 1;
+  CheckoutOwner owner = 2;
+  SimulatedPaymentOutcome outcome = 3;
+  string idempotency_key = 4;
+  string request_id = 5;
+}
+
+message SimulatePaymentResponse {
+  SimulatedPaymentResult result = 1;
+  string request_id = 2;
+}
+
+message SimulatedPaymentResult {
+  string payment_attempt_id = 1;
+  SimulatedPaymentStatus status = 2;
+  Booking booking = 3;
+  optional string failure_code = 4;
+  string processed_at = 5;
+}
+
+message ListMyBookingsRequest {
+  int32 page_size = 1;
+  optional string cursor = 2;
+  string request_id = 3;
+}
+
+message ListMyBookingsResponse {
+  repeated Booking bookings = 1;
+  optional string next_cursor = 2;
+  string request_id = 3;
+}
+
+message CancelBookingRequest {
+  string booking_id = 1;
+  string idempotency_key = 2;
+  string request_id = 3;
+}
+
+message CancelBookingResponse {
+  CancellationResult result = 1;
+  string request_id = 2;
+}
+
+message CancellationResult {
+  Booking booking = 1;
+  string cancelled_at = 2;
+  string policy_code = 3;
+  bool seats_released = 4;
+}
+
+enum SimulatedPaymentOutcome {
+  SIMULATED_PAYMENT_OUTCOME_UNSPECIFIED = 0;
+  SIMULATED_PAYMENT_OUTCOME_SUCCESS = 1;
+  SIMULATED_PAYMENT_OUTCOME_FAILURE = 2;
+}
+
+enum SimulatedPaymentStatus {
+  SIMULATED_PAYMENT_STATUS_UNSPECIFIED = 0;
+  SIMULATED_PAYMENT_STATUS_SUCCEEDED = 1;
+  SIMULATED_PAYMENT_STATUS_FAILED = 2;
+}
+
+message Booking {
+  string id = 1;
+  string booking_code = 2;
+  BookingStatus status = 3;
+  BookingTripSnapshot trip = 4;
+  BookingContact contact = 5;
+  repeated BookingPassenger passengers = 6;
+  int32 total_price_vnd = 7;
+  string hold_expires_at = 8;
+  string created_at = 9;
+}
+
+enum BookingStatus {
+  BOOKING_STATUS_UNSPECIFIED = 0;
+  BOOKING_STATUS_DRAFT = 1;
+  BOOKING_STATUS_PENDING_PAYMENT = 2;
+  BOOKING_STATUS_PAID = 3;
+  BOOKING_STATUS_TICKET_ISSUED = 4;
+  BOOKING_STATUS_CHECKED_IN = 5;
+  BOOKING_STATUS_COMPLETED = 6;
+  BOOKING_STATUS_EXPIRED = 7;
+  BOOKING_STATUS_CANCELLED = 8;
+}
+
+message BookingTripSnapshot {
+  string trip_id = 1;
+  string route_id = 2;
+  string route_code = 3;
+  string operator_name = 4;
+  string vehicle_type_name = 5;
+  string vehicle_code = 6;
+  string vehicle_plate = 7;
+  string origin_name = 8;
+  string destination_name = 9;
+  string pickup_name = 10;
+  string dropoff_name = 11;
+  string departure_at = 12;
+  string arrival_at = 13;
+  string timezone = 14;
+  int32 unit_price_vnd = 15;
+}
+
+message BookingContact {
+  string full_name = 1;
+  string email = 2;
+  string phone = 3;
+}
+
+message BookingPassenger {
+  string id = 1;
+  string seat_id = 2;
+  string full_name = 3;
+  optional string phone = 4;
+  bool has_document_number = 5;
+}
+
+message GetFulfillmentSnapshotRequest {
+  string booking_id = 1;
+  string request_id = 2;
+}
+
+message GetFulfillmentSnapshotResponse {
+  BookingFulfillmentSnapshot snapshot = 1;
+  string request_id = 2;
+}
+
+message BookingFulfillmentSnapshot {
+  string booking_id = 1;
+  string booking_code = 2;
+  BookingStatus status = 3;
+  CheckoutOwner owner = 4;
+  string contact_email = 5;
+  BookingTripSnapshot trip = 6;
+  repeated BookingPassenger passengers = 7;
+  int32 total_price_vnd = 8;
+  string paid_at = 9;
+}
+
+message MarkTicketIssuedRequest {
+  string booking_id = 1;
+  string source_event_id = 2;
+  string issued_at = 3;
+  int32 ticket_count = 4;
+  string request_id = 5;
+  repeated IssuedTicketReference tickets = 6;
+}
+
+message MarkTicketIssuedResponse {
+  string booking_id = 1;
+  BookingStatus status = 2;
+  bool transitioned = 3;
+  string request_id = 4;
+}
+
+message IssuedTicketReference {
+  string ticket_id = 1;
+  string passenger_id = 2;
+  string ticket_code = 3;
+  string qr_payload = 4;
+}
+
+enum StaffTicketCredentialKind {
+  STAFF_TICKET_CREDENTIAL_KIND_UNSPECIFIED = 0;
+  STAFF_TICKET_CREDENTIAL_KIND_BOOKING_CODE = 1;
+  STAFF_TICKET_CREDENTIAL_KIND_TICKET_CODE = 2;
+  STAFF_TICKET_CREDENTIAL_KIND_QR_PAYLOAD = 3;
+}
+
+message StaffTicketLookupRequest {
+  StaffTicketCredentialKind kind = 1;
+  string credential = 2;
+  string request_id = 3;
+}
+
+message StaffTicketLookupResponse {
+  repeated StaffTicketView tickets = 1;
+  string request_id = 2;
+}
+
+message CheckInTicketRequest {
+  StaffTicketCredentialKind kind = 1;
+  string credential = 2;
+  string trip_id = 3;
+  string idempotency_key = 4;
+  string request_id = 5;
+}
+
+message CheckInTicketResponse {
+  StaffTicketView ticket = 1;
+  bool transitioned = 2;
+  string request_id = 3;
+}
+
+message StaffTicketView {
+  string ticket_id = 1;
+  string ticket_code = 2;
+  string booking_id = 3;
+  string booking_code = 4;
+  BookingStatus booking_status = 5;
+  string passenger_id = 6;
+  string passenger_name = 7;
+  string seat_id = 8;
+  string trip_id = 9;
+  string route_label = 10;
+  string departure_at = 11;
+  optional string checked_in_at = 12;
+}
+
+message GetAdminOperationsRequest {
+  optional string trip_id = 1;
+  int32 booking_limit = 2;
+  int32 audit_limit = 3;
+  string request_id = 4;
+}
+
+message GetAdminOperationsResponse {
+  repeated Booking bookings = 1;
+  BookingOperationalSummary summary = 2;
+  repeated BookingAuditEvent audit_events = 3;
+  string request_id = 4;
+}
+
+message BookingOperationalSummary {
+  int32 booking_count = 1;
+  int32 passenger_count = 2;
+  int64 revenue_vnd = 3;
+  repeated BookingStatusCount status_counts = 4;
+}
+
+message BookingStatusCount {
+  BookingStatus status = 1;
+  int32 count = 2;
+}
+
+message GetGuestBookingLookupRequest {
+  string booking_code = 1;
+  string normalized_email = 2;
+  string request_id = 3;
+}
+
+message GetGuestBookingLookupResponse {
+  GuestBookingLookup booking = 1;
+  string request_id = 2;
+}
+
+message GuestBookingLookup {
+  string booking_code = 1;
+  BookingStatus status = 2;
+  string trip_id = 3;
+  string origin_name = 4;
+  string destination_name = 5;
+  string departure_at = 6;
+  string timezone = 7;
+  repeated string seat_ids = 8;
+  bool ticket_issued = 9;
+  bool cancellation_eligible = 10;
+}
+
+message BookingAuditEvent {
+  string id = 1;
+  string action = 2;
+  string target_type = 3;
+  string target_id = 4;
+  string actor_id = 5;
+  string actor_role = 6;
+  string occurred_at = 7;
+  string request_id = 8;
+  string trace_id = 9;
+}

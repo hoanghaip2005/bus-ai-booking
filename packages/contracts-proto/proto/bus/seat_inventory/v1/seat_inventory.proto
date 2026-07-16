@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package bus.seat_inventory.v1;
+
+service SeatInventoryService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc GetSeatMap(GetSeatMapRequest) returns (GetSeatMapResponse);
+  rpc HoldSeats(HoldSeatsRequest) returns (HoldSeatsResponse);
+  rpc GetHold(GetHoldRequest) returns (GetHoldResponse);
+  rpc ReleaseHold(ReleaseHoldRequest) returns (ReleaseHoldResponse);
+  rpc ConfirmSeats(ConfirmSeatsRequest) returns (ConfirmSeatsResponse);
+  rpc ReleaseBookedSeats(ReleaseBookedSeatsRequest) returns (ReleaseBookedSeatsResponse);
+  rpc SetSeatBlocked(SetSeatBlockedRequest) returns (SetSeatBlockedResponse);
+}
+
+message HealthRequest {
+  string request_id = 1;
+}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+  string version = 3;
+  string request_id = 4;
+  string checked_at = 5;
+  string trace_id = 6;
+}
+
+message GetSeatMapRequest {
+  string trip_id = 1;
+  string request_id = 2;
+  optional string hold_token = 3;
+}
+
+message GetSeatMapResponse {
+  SeatMap seat_map = 1;
+  string request_id = 2;
+}
+
+message SeatMap {
+  string trip_id = 1;
+  string layout_id = 2;
+  int32 layout_version = 3;
+  string layout_name = 4;
+  int32 deck_count = 5;
+  repeated SeatState seats = 6;
+  string generated_at = 7;
+}
+
+message SeatState {
+  string id = 1;
+  string label = 2;
+  int32 deck = 3;
+  int32 row = 4;
+  int32 column = 5;
+  SeatStatus status = 6;
+  bool held_by_requester = 7;
+}
+
+message HoldOwner {
+  HoldOwnerType type = 1;
+  string id = 2;
+}
+
+message HoldSeatsRequest {
+  string trip_id = 1;
+  repeated string seat_ids = 2;
+  HoldOwner owner = 3;
+  string idempotency_key = 4;
+  int32 requested_ttl_seconds = 5;
+  string request_id = 6;
+}
+
+message HoldSeatsResponse {
+  SeatHold hold = 1;
+  string request_id = 2;
+}
+
+message GetHoldRequest {
+  string hold_token = 1;
+  HoldOwner owner = 2;
+  string request_id = 3;
+}
+
+message GetHoldResponse {
+  SeatHold hold = 1;
+  string request_id = 2;
+}
+
+message ReleaseHoldRequest {
+  string hold_token = 1;
+  HoldOwner owner = 2;
+  string idempotency_key = 3;
+  string request_id = 4;
+}
+
+message ReleaseHoldResponse {
+  bool released = 1;
+  string trip_id = 2;
+  repeated string seat_ids = 3;
+  string released_at = 4;
+  string request_id = 5;
+}
+
+message ConfirmSeatsRequest {
+  string hold_token = 1;
+  HoldOwner owner = 2;
+  string trip_id = 3;
+  repeated string seat_ids = 4;
+  string booking_id = 5;
+  string idempotency_key = 6;
+  string request_id = 7;
+}
+
+message ConfirmSeatsResponse {
+  bool confirmed = 1;
+  string trip_id = 2;
+  repeated string seat_ids = 3;
+  string booking_id = 4;
+  string confirmed_at = 5;
+  string request_id = 6;
+}
+
+message ReleaseBookedSeatsRequest {
+  string booking_id = 1;
+  string trip_id = 2;
+  repeated string seat_ids = 3;
+  string idempotency_key = 4;
+  string request_id = 5;
+}
+
+message ReleaseBookedSeatsResponse {
+  bool released = 1;
+  string booking_id = 2;
+  string trip_id = 3;
+  repeated string seat_ids = 4;
+  string released_at = 5;
+  string request_id = 6;
+}
+
+message SetSeatBlockedRequest {
+  string trip_id = 1;
+  repeated string seat_ids = 2;
+  bool blocked = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+  string request_id = 6;
+}
+
+message SetSeatBlockedResponse {
+  string trip_id = 1;
+  repeated string seat_ids = 2;
+  bool blocked = 3;
+  bool changed = 4;
+  string updated_at = 5;
+  string request_id = 6;
+}
+
+message SeatHold {
+  string token = 1;
+  string trip_id = 2;
+  repeated string seat_ids = 3;
+  HoldOwner owner = 4;
+  string expires_at = 5;
+  int32 remaining_ttl_seconds = 6;
+  int32 unit_price_vnd = 7;
+  int32 total_price_vnd = 8;
+  HoldStatus status = 9;
+}
+
+enum SeatStatus {
+  SEAT_STATUS_UNSPECIFIED = 0;
+  SEAT_STATUS_AVAILABLE = 1;
+  SEAT_STATUS_HELD = 2;
+  SEAT_STATUS_BOOKED = 3;
+  SEAT_STATUS_BLOCKED = 4;
+}
+
+enum HoldOwnerType {
+  HOLD_OWNER_TYPE_UNSPECIFIED = 0;
+  HOLD_OWNER_TYPE_GUEST_SESSION = 1;
+  HOLD_OWNER_TYPE_CUSTOMER = 2;
+}
+
+enum HoldStatus {
+  HOLD_STATUS_UNSPECIFIED = 0;
+  HOLD_STATUS_ACTIVE = 1;
+  HOLD_STATUS_EXPIRED = 2;
+  HOLD_STATUS_RELEASED = 3;
+}

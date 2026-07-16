@@ -1,0 +1,917 @@
+type Query {
+  adminRevenueSummary(input: AnalyticsDateRangeInput!): AdminRevenueSummary!
+  adminPopularRoutes(input: PopularRoutesInput!): AdminPopularRoutes!
+  adminSearchConversion(input: AnalyticsDateRangeInput!): AdminSearchConversion!
+  adminTicketSalesByRoute(input: PopularRoutesInput!): AdminTicketSalesByRoute!
+  adminPaymentSummary(input: AnalyticsDateRangeInput!): AdminPaymentSummary!
+  platformHealth: PlatformHealth!
+  catalogHealth: ServiceHealth!
+  locationSuggestions(query: String!, limit: Int! = 8): [LocationSuggestion!]!
+  searchTrips(input: SearchTripsInput!): TripSearchResult!
+  trip(id: ID!): TripDetail
+  seatMap(tripId: ID!, holdToken: String): SeatMap!
+  seatHold(holdToken: String!): SeatHold!
+  bookingTickets(bookingId: ID!): BookingTicketDelivery!
+  bookingLookup(bookingCode: String!, email: String!): BookingLookup!
+  myBookings(first: Int! = 10, after: String): BookingConnection!
+  passengerProfiles: [PassengerProfile!]!
+  staffTicketLookup(input: StaffTicketLookupInput!): [StaffTicketView!]!
+  adminOperations(input: AdminOperationsInput!): AdminOperations!
+  adminTripPreparationOptions: TripPreparationOptions!
+  adminCatalog: AdminCatalog!
+  viewer: AuthUser!
+}
+
+type AdminTicketSalesByRoute {
+  routes: [RouteTicketSales!]!
+  lastProcessedAt: String
+  timezone: String!
+}
+
+type RouteTicketSales {
+  routeId: ID!
+  routeCode: String!
+  routeLabel: String!
+  paidBookingCount: Int!
+  ticketCount: Int!
+  revenueVnd: Int!
+}
+
+type AdminPaymentSummary {
+  attemptCount: Int!
+  succeededCount: Int!
+  failedCount: Int!
+  successRate: Float!
+  succeededAmountVnd: Int!
+  consumerLag: AnalyticsConsumerLag!
+  lastProcessedAt: String
+  timezone: String!
+}
+
+type AnalyticsConsumerLag {
+  available: Boolean!
+  totalLag: Int!
+  topics: [AnalyticsTopicLag!]!
+}
+
+type AnalyticsTopicLag {
+  topic: String!
+  lag: Int!
+}
+
+input PopularRoutesInput {
+  fromDate: String!
+  toDate: String!
+  limit: Int! = 5
+}
+
+type AdminPopularRoutes {
+  routes: [PopularRoute!]!
+  lastProcessedAt: String
+  timezone: String!
+}
+
+type PopularRoute {
+  routeId: ID!
+  routeCode: String!
+  routeLabel: String!
+  searchCount: Int!
+  paidBookingCount: Int!
+  conversionRate: Float!
+}
+
+type AdminSearchConversion {
+  searchCount: Int!
+  paidBookingCount: Int!
+  conversionRate: Float!
+  lastProcessedAt: String
+  timezone: String!
+}
+
+input AnalyticsDateRangeInput {
+  fromDate: String!
+  toDate: String!
+}
+
+type AdminRevenueSummary {
+  days: [DailyRevenue!]!
+  totalRevenueVnd: Int!
+  paidBookingCount: Int!
+  ticketCount: Int!
+  lastProcessedAt: String
+  timezone: String!
+}
+
+type DailyRevenue {
+  localDate: String!
+  revenueVnd: Int!
+  paidBookingCount: Int!
+  ticketCount: Int!
+}
+
+type Mutation {
+  holdSeats(input: HoldSeatsInput!): SeatHold!
+  releaseSeatHold(input: ReleaseSeatHoldInput!): ReleaseSeatHoldPayload!
+  createBooking(input: CreateBookingInput!): Booking!
+  simulatePayment(input: SimulatePaymentInput!): PaymentResult!
+  cancelBooking(input: CancelBookingInput!): CancellationResult!
+  login(input: LoginInput!): AuthSession!
+  refreshSession(input: RefreshSessionInput!): AuthSession!
+  logout(input: LogoutInput!): LogoutPayload!
+  setTripActive(input: SetTripActiveInput!): TripActivationResult!
+  transitionTripStatus(input: TransitionTripStatusInput!): TripStatusTransitionResult!
+  createTrip(input: CreateTripInput!): CreateTripResult!
+  setSeatBlocked(input: SetSeatBlockedInput!): SetSeatBlockedResult!
+  saveAdminLocation(input: SaveAdminLocationInput!): SaveCatalogResourceResult!
+  saveAdminRoute(input: SaveAdminRouteInput!): SaveCatalogResourceResult!
+  saveAdminVehicle(input: SaveAdminVehicleInput!): SaveCatalogResourceResult!
+  saveAdminSeatLayout(input: SaveAdminSeatLayoutInput!): SaveCatalogResourceResult!
+  updateAdminTrip(input: UpdateAdminTripInput!): SaveCatalogResourceResult!
+  setCatalogResourceActive(input: SetCatalogResourceActiveInput!): SaveCatalogResourceResult!
+  checkInTicket(input: CheckInTicketInput!): CheckInResult!
+  createPassengerProfile(input: PassengerProfileInput!): PassengerProfile!
+  updatePassengerProfile(id: ID!, input: PassengerProfileInput!): PassengerProfile!
+  deletePassengerProfile(id: ID!): DeletePassengerProfilePayload!
+}
+
+input SetSeatBlockedInput {
+  tripId: ID!
+  seatIds: [ID!]!
+  blocked: Boolean!
+  reason: String!
+  idempotencyKey: String!
+}
+
+type SetSeatBlockedResult {
+  tripId: ID!
+  seatIds: [ID!]!
+  blocked: Boolean!
+  changed: Boolean!
+  updatedAt: String!
+}
+
+type Subscription {
+  platformPulse: PlatformPulse!
+  seatStatusChanged(tripId: ID!): SeatStatusEvent!
+}
+
+type PlatformHealth {
+  service: String!
+  status: HealthStatus!
+  version: String!
+  checkedAt: String!
+}
+
+type ServiceHealth {
+  service: String!
+  status: HealthStatus!
+  version: String!
+  requestId: String!
+  traceId: String!
+  checkedAt: String!
+}
+
+type PlatformPulse {
+  sequence: Int!
+  service: String!
+  status: HealthStatus!
+  emittedAt: String!
+}
+
+enum HealthStatus {
+  UP
+  DEGRADED
+  DOWN
+}
+
+type LocationSuggestion {
+  id: ID!
+  code: String!
+  name: String!
+  normalizedName: String!
+  kind: LocationKind!
+  parentLocationId: ID
+}
+
+enum LocationKind {
+  CITY
+  STATION
+}
+
+input SearchTripsInput {
+  originLocationId: ID!
+  destinationLocationId: ID!
+  travelDate: String!
+  departureTimeFrom: String
+  departureTimeTo: String
+  minPriceVnd: Int
+  maxPriceVnd: Int
+  operatorCodes: [String!]
+  vehicleTypeCodes: [String!]
+  minimumRemainingSeats: Int
+  sort: TripSort = DEPARTURE_EARLIEST
+}
+
+type TripSearchResult {
+  trips: [TripSummary!]!
+  timezone: String!
+  nearestTravelDates: [String!]!
+}
+
+enum TripSort {
+  DEPARTURE_EARLIEST
+  PRICE_LOWEST
+  DURATION_SHORTEST
+}
+
+type TripSummary {
+  id: ID!
+  routeId: ID!
+  operatorName: String!
+  vehicleTypeName: String!
+  vehicleCode: String!
+  originName: String!
+  destinationName: String!
+  pickupName: String!
+  dropoffName: String!
+  departureAt: String!
+  arrivalAt: String!
+  durationMinutes: Int!
+  priceVnd: Int!
+  remainingSeats: Int!
+}
+
+type BookingLookup {
+  bookingCode: String!
+  status: BookingStatus!
+  tripId: ID!
+  originName: String!
+  destinationName: String!
+  departureAt: String!
+  timezone: String!
+  seatIds: [String!]!
+  ticketIssued: Boolean!
+  cancellationEligible: Boolean!
+}
+
+type TripDetail {
+  id: ID!
+  routeId: ID!
+  routeCode: String!
+  operatorName: String!
+  vehicleTypeName: String!
+  vehicleCode: String!
+  vehiclePlate: String!
+  originName: String!
+  destinationName: String!
+  departureAt: String!
+  arrivalAt: String!
+  durationMinutes: Int!
+  priceVnd: Int!
+  remainingSeats: Int!
+  status: TripStatus!
+  timezone: String!
+  stops: [TripStop!]!
+  seatLayout: SeatLayout!
+  policies: [PolicyReference!]!
+}
+
+type TripStop {
+  id: ID!
+  locationId: ID!
+  name: String!
+  kind: TripStopKind!
+  stopOrder: Int!
+  offsetMinutes: Int!
+  scheduledAt: String!
+}
+
+enum TripStopKind {
+  PICKUP
+  DROPOFF
+  BOTH
+}
+
+type SeatLayout {
+  id: ID!
+  version: Int!
+  name: String!
+  deckCount: Int!
+  seats: [SeatDefinition!]!
+}
+
+type SeatDefinition {
+  id: ID!
+  label: String!
+  deck: Int!
+  row: Int!
+  column: Int!
+}
+
+type PolicyReference {
+  code: String!
+  title: String!
+  summary: String!
+  resourceUri: String!
+}
+
+type SeatMap {
+  tripId: ID!
+  layoutId: ID!
+  layoutVersion: Int!
+  layoutName: String!
+  deckCount: Int!
+  seats: [SeatState!]!
+  generatedAt: String!
+}
+
+type SeatState {
+  id: ID!
+  label: String!
+  deck: Int!
+  row: Int!
+  column: Int!
+  status: SeatStatus!
+  heldByRequester: Boolean!
+}
+
+type SeatStatusEvent {
+  tripId: ID!
+  seatIds: [ID!]!
+  status: SeatStatus!
+  expiresAt: String
+  version: Int!
+  occurredAt: String!
+}
+
+input HoldSeatsInput {
+  tripId: ID!
+  seatIds: [ID!]!
+  idempotencyKey: String!
+  ttlSeconds: Int! = 300
+}
+
+input ReleaseSeatHoldInput {
+  holdToken: String!
+  idempotencyKey: String!
+}
+
+type SeatHold {
+  token: String!
+  tripId: ID!
+  seatIds: [ID!]!
+  expiresAt: String!
+  remainingTtlSeconds: Int!
+  unitPriceVnd: Int!
+  totalPriceVnd: Int!
+  status: HoldStatus!
+}
+
+type ReleaseSeatHoldPayload {
+  released: Boolean!
+  tripId: ID
+  seatIds: [ID!]!
+  releasedAt: String
+}
+
+enum HoldStatus {
+  ACTIVE
+  EXPIRED
+  RELEASED
+}
+
+enum SeatStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+  BLOCKED
+}
+
+enum TripStatus {
+  SCHEDULED
+  BOARDING
+  DEPARTED
+  COMPLETED
+}
+
+input CreateBookingInput {
+  holdToken: String!
+  idempotencyKey: String!
+  contact: BookingContactInput!
+  passengers: [BookingPassengerInput!]!
+}
+
+input BookingContactInput {
+  fullName: String!
+  email: String!
+  phone: String!
+}
+
+input BookingPassengerInput {
+  seatId: ID!
+  fullName: String!
+  phone: String
+  documentNumber: String
+}
+
+type Booking {
+  id: ID!
+  bookingCode: String!
+  status: BookingStatus!
+  trip: BookingTripSnapshot!
+  contact: BookingContact!
+  passengers: [BookingPassenger!]!
+  totalPriceVnd: Int!
+  holdExpiresAt: String!
+  createdAt: String!
+}
+
+type BookingConnection {
+  nodes: [Booking!]!
+  pageInfo: BookingPageInfo!
+}
+
+type BookingPageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  TICKET_ISSUED
+  CHECKED_IN
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+type BookingTripSnapshot {
+  tripId: ID!
+  routeId: ID!
+  routeCode: String!
+  operatorName: String!
+  vehicleTypeName: String!
+  vehicleCode: String!
+  vehiclePlate: String!
+  originName: String!
+  destinationName: String!
+  pickupName: String!
+  dropoffName: String!
+  departureAt: String!
+  arrivalAt: String!
+  timezone: String!
+  unitPriceVnd: Int!
+}
+
+type BookingContact {
+  fullName: String!
+  email: String!
+  phone: String!
+}
+
+type BookingPassenger {
+  id: ID!
+  seatId: ID!
+  fullName: String!
+  phone: String
+  hasDocumentNumber: Boolean!
+}
+
+input SimulatePaymentInput {
+  bookingId: ID!
+  outcome: SimulatedPaymentOutcome!
+  idempotencyKey: String!
+}
+
+enum SimulatedPaymentOutcome {
+  SUCCESS
+  FAILURE
+}
+
+type PaymentResult {
+  paymentAttemptId: ID!
+  status: PaymentStatus!
+  booking: Booking!
+  failureCode: String
+  processedAt: String!
+}
+
+input CancelBookingInput {
+  bookingId: ID!
+  idempotencyKey: String!
+}
+
+type CancellationResult {
+  booking: Booking!
+  cancelledAt: String!
+  policyCode: String!
+  seatsReleased: Boolean!
+}
+
+type BookingTicketDelivery {
+  bookingId: ID!
+  ready: Boolean!
+  tickets: [BookingTicket!]!
+}
+
+type BookingTicket {
+  id: ID!
+  ticketCode: String!
+  bookingCode: String!
+  passengerName: String!
+  seatId: ID!
+  routeLabel: String!
+  pickupName: String!
+  dropoffName: String!
+  departureAt: String!
+  vehicleLabel: String!
+  qrPayload: String!
+  htmlContent: String!
+  pdfBase64: String!
+  issuedAt: String!
+}
+
+enum PaymentStatus {
+  SUCCEEDED
+  FAILED
+}
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+type AuthUser {
+  id: ID!
+  email: String!
+  displayName: String!
+  role: UserRole!
+}
+
+type AuthSession {
+  accessToken: String!
+  refreshToken: String!
+  accessExpiresAt: String!
+  refreshExpiresAt: String!
+  user: AuthUser!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input RefreshSessionInput {
+  refreshToken: String!
+}
+
+input LogoutInput {
+  refreshToken: String!
+}
+
+type LogoutPayload {
+  revoked: Boolean!
+}
+
+input SetTripActiveInput {
+  tripId: ID!
+  isActive: Boolean!
+}
+
+type TripActivationResult {
+  tripId: ID!
+  isActive: Boolean!
+  changed: Boolean!
+}
+
+input TransitionTripStatusInput {
+  tripId: ID!
+  targetStatus: TripLifecycleTarget!
+  idempotencyKey: String!
+}
+
+enum TripLifecycleTarget {
+  DEPARTED
+  COMPLETED
+}
+
+type TripStatusTransitionResult {
+  tripId: ID!
+  previousStatus: TripStatus!
+  status: TripStatus!
+  changed: Boolean!
+  transitionedAt: String!
+}
+
+type TripPreparationOptions {
+  routes: [AdminRouteOption!]!
+  vehicles: [AdminVehicleOption!]!
+}
+
+type AdminRouteOption {
+  id: ID!
+  code: String!
+  originName: String!
+  destinationName: String!
+  durationMinutes: Int!
+}
+
+type AdminVehicleOption {
+  id: ID!
+  code: String!
+  plate: String!
+  operatorName: String!
+  vehicleTypeName: String!
+  seatLayoutVersionId: ID!
+  seatLayoutVersion: Int!
+  seatLayoutName: String!
+}
+
+input CreateTripInput {
+  routeId: ID!
+  vehicleId: ID!
+  seatLayoutVersionId: ID!
+  departureAt: String!
+  arrivalAt: String!
+  priceVnd: Int!
+  idempotencyKey: String!
+}
+
+type CreateTripResult {
+  tripId: ID!
+  routeId: ID!
+  vehicleId: ID!
+  seatLayoutVersionId: ID!
+  departureAt: String!
+  arrivalAt: String!
+  priceVnd: Int!
+  status: TripStatus!
+  created: Boolean!
+  createdAt: String!
+}
+
+type AdminCatalog {
+  locations: [AdminLocation!]!
+  operators: [AdminOperator!]!
+  vehicleTypes: [AdminVehicleType!]!
+  seatLayouts: [AdminSeatLayout!]!
+  vehicles: [AdminVehicle!]!
+  routes: [AdminRoute!]!
+  trips: [AdminTrip!]!
+}
+
+type AdminLocation {
+  id: ID!
+  code: String!
+  name: String!
+  kind: LocationKind!
+  parentLocationId: ID
+  isActive: Boolean!
+}
+
+type AdminOperator {
+  id: ID!
+  code: String!
+  name: String!
+  isActive: Boolean!
+}
+
+type AdminVehicleType {
+  id: ID!
+  code: String!
+  name: String!
+  seatCapacity: Int!
+}
+
+type AdminSeatLayout {
+  id: ID!
+  vehicleTypeId: ID!
+  version: Int!
+  name: String!
+  deckCount: Int!
+  layoutJson: String!
+  isActive: Boolean!
+}
+
+type AdminVehicle {
+  id: ID!
+  code: String!
+  plate: String!
+  operatorId: ID!
+  vehicleTypeId: ID!
+  seatLayoutVersionId: ID!
+  isActive: Boolean!
+}
+
+type AdminRouteStop {
+  id: ID!
+  locationId: ID!
+  stopOrder: Int!
+  stopKind: TripStopKind!
+  offsetMinutes: Int!
+}
+
+type AdminRoute {
+  id: ID!
+  code: String!
+  originLocationId: ID!
+  destinationLocationId: ID!
+  durationMinutes: Int!
+  isActive: Boolean!
+  stops: [AdminRouteStop!]!
+}
+
+type AdminTrip {
+  id: ID!
+  routeId: ID!
+  vehicleId: ID!
+  departureAt: String!
+  arrivalAt: String!
+  priceVnd: Int!
+  status: TripStatus!
+  isActive: Boolean!
+}
+
+input SaveAdminLocationInput {
+  id: ID
+  code: String!
+  name: String!
+  kind: LocationKind!
+  parentLocationId: ID
+  idempotencyKey: String!
+}
+
+input SaveAdminRouteStopInput {
+  id: ID
+  locationId: ID!
+  stopOrder: Int!
+  stopKind: TripStopKind!
+  offsetMinutes: Int!
+}
+
+input SaveAdminRouteInput {
+  id: ID
+  code: String!
+  originLocationId: ID!
+  destinationLocationId: ID!
+  durationMinutes: Int!
+  stops: [SaveAdminRouteStopInput!]!
+  idempotencyKey: String!
+}
+
+input SaveAdminVehicleInput {
+  id: ID
+  code: String!
+  plate: String!
+  operatorId: ID!
+  vehicleTypeId: ID!
+  seatLayoutVersionId: ID!
+  idempotencyKey: String!
+}
+
+input SaveAdminSeatLayoutInput {
+  id: ID
+  vehicleTypeId: ID!
+  version: Int!
+  name: String!
+  deckCount: Int!
+  layoutJson: String!
+  idempotencyKey: String!
+}
+
+input UpdateAdminTripInput {
+  id: ID!
+  routeId: ID!
+  vehicleId: ID!
+  seatLayoutVersionId: ID!
+  departureAt: String!
+  arrivalAt: String!
+  priceVnd: Int!
+  idempotencyKey: String!
+}
+
+enum CatalogResourceType {
+  LOCATION
+  ROUTE
+  VEHICLE
+  SEAT_LAYOUT
+  TRIP
+}
+
+input SetCatalogResourceActiveInput {
+  resourceType: CatalogResourceType!
+  id: ID!
+  isActive: Boolean!
+  idempotencyKey: String!
+}
+
+type SaveCatalogResourceResult {
+  resourceType: CatalogResourceType!
+  id: ID!
+  created: Boolean!
+  changed: Boolean!
+  isActive: Boolean!
+  updatedAt: String!
+}
+
+input StaffTicketLookupInput {
+  kind: StaffTicketCredentialKind!
+  credential: String!
+}
+
+enum StaffTicketCredentialKind {
+  BOOKING_CODE
+  TICKET_CODE
+  QR_PAYLOAD
+}
+
+input CheckInTicketInput {
+  kind: StaffTicketCheckInKind!
+  credential: String!
+  tripId: ID!
+  idempotencyKey: String!
+}
+
+enum StaffTicketCheckInKind {
+  TICKET_CODE
+  QR_PAYLOAD
+}
+
+type StaffTicketView {
+  ticketId: ID!
+  ticketCode: String!
+  bookingId: ID!
+  bookingCode: String!
+  bookingStatus: BookingStatus!
+  passengerId: ID!
+  passengerName: String!
+  seatId: ID!
+  tripId: ID!
+  routeLabel: String!
+  departureAt: String!
+  checkedInAt: String
+}
+
+type CheckInResult {
+  ticket: StaffTicketView!
+  transitioned: Boolean!
+}
+
+input AdminOperationsInput {
+  tripId: ID
+  bookingLimit: Int! = 50
+  auditLimit: Int! = 50
+}
+
+type AdminOperations {
+  bookings: [Booking!]!
+  summary: BookingOperationalSummary!
+  auditEvents: [BookingAuditEvent!]!
+}
+
+type BookingOperationalSummary {
+  bookingCount: Int!
+  passengerCount: Int!
+  revenueVnd: Int!
+  statusCounts: [BookingStatusCount!]!
+}
+
+type BookingStatusCount {
+  status: BookingStatus!
+  count: Int!
+}
+
+type BookingAuditEvent {
+  id: ID!
+  action: String!
+  targetType: String!
+  targetId: ID!
+  actorId: ID!
+  actorRole: String!
+  occurredAt: String!
+  requestId: String!
+  traceId: String!
+}
+
+type PassengerProfile {
+  id: ID!
+  label: String!
+  fullName: String!
+  phone: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+input PassengerProfileInput {
+  label: String!
+  fullName: String!
+  phone: String
+}
+
+type DeletePassengerProfilePayload {
+  id: ID!
+  deleted: Boolean!
+}

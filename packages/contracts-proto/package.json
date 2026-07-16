@@ -1,0 +1,38 @@
+{
+  "name": "@bus/contracts-proto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "exports": {
+    "./catalog.proto": "./proto/bus/catalog/v1/catalog.proto",
+    "./identity.proto": "./proto/bus/identity/v1/identity.proto",
+    "./booking.proto": "./proto/bus/booking/v1/booking.proto",
+    "./payment.proto": "./proto/bus/payment/v1/payment.proto",
+    "./analytics.proto": "./proto/bus/analytics/v1/analytics.proto",
+    "./ticket.proto": "./proto/bus/ticket/v1/ticket.proto",
+    "./seat-inventory.proto": "./proto/bus/seat_inventory/v1/seat_inventory.proto",
+    "./generated/booking": "./src/generated/bus/booking/v1/booking.ts",
+    "./generated/catalog": "./src/generated/bus/catalog/v1/catalog.ts",
+    "./generated/identity": "./src/generated/bus/identity/v1/identity.ts",
+    "./generated/payment": "./src/generated/bus/payment/v1/payment.ts",
+    "./generated/analytics": "./src/generated/bus/analytics/v1/analytics.ts",
+    "./generated/ticket": "./src/generated/bus/ticket/v1/ticket.ts",
+    "./generated/seat-inventory": "./src/generated/bus/seat_inventory/v1/seat_inventory.ts"
+  },
+  "scripts": {
+    "generate": "buf generate",
+    "lint": "buf lint",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.12.1",
+    "@grpc/grpc-js": "1.14.4"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "1.71.0",
+    "ts-proto": "2.12.0",
+    "typescript": "5.9.3"
+  }
+}
