@@ -74,6 +74,7 @@ type, minimum-seat filters and all three required sort modes. Searching
 
 ## Documentation
 
+- `RUN_AND_TEST.md`: hướng dẫn chi tiết chạy, demo, test và troubleshooting.
 - `docs/ARCHITECTURE.md`: service ownership and communication boundaries.
 - `docs/CONTRACTS.md`: GraphQL, gRPC, event, AI and MCP contracts.
 - `docs/RELEASE_RUNBOOK.md`: clean demo, verification and rollback commands.
