@@ -10,9 +10,14 @@ import { TicketDeliveryPanel } from './ticket-delivery-panel';
 interface SimulatedPaymentPanelProps {
   booking: GuestBooking;
   onBookingUpdated: (booking: GuestBooking) => void;
+  onStartNewBooking: () => void;
 }
 
-export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPaymentPanelProps) {
+export function SimulatedPaymentPanel({
+  booking,
+  onBookingUpdated,
+  onStartNewBooking,
+}: SimulatedPaymentPanelProps) {
   const [processing, setProcessing] = useState<'SUCCESS' | 'FAILURE'>();
   const [failureMessage, setFailureMessage] = useState<string>();
   const [error, setError] = useState<string>();
@@ -59,6 +64,9 @@ export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPa
         </p>
         <BookingSummary booking={booking} />
         <TicketDeliveryPanel bookingId={booking.id} />
+        <button className="booking-reset-action" type="button" onClick={onStartNewBooking}>
+          Đặt thêm vé
+        </button>
       </section>
     );
   }
@@ -69,6 +77,9 @@ export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPa
         <p className="eyebrow">Đơn đặt vé hết hạn</p>
         <h3 id="payment-title">{booking.bookingCode}</h3>
         <p role="status">Thời gian giữ ghế đã hết. Vui lòng chọn lại ghế để tạo đơn mới.</p>
+        <button className="booking-reset-action" type="button" onClick={onStartNewBooking}>
+          Chọn lại ghế
+        </button>
       </section>
     );
   }
@@ -83,8 +94,8 @@ export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPa
         <span>Chờ thanh toán</span>
       </div>
       <p>
-        Chọn một kết quả để kiểm thử workflow. Hệ thống không thu tiền thật và không nhận số tiền từ
-        trình duyệt.
+        Đây là bước thanh toán mô phỏng, không phát sinh giao dịch thật. Giá vé và ghế được hệ thống
+        kiểm tra lại trước khi xác nhận.
       </p>
       <BookingSummary booking={booking} />
       <div className="payment-actions" aria-busy={Boolean(processing)}>

@@ -1,30 +1,42 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 type HeaderVariant = 'public' | 'account' | 'staff' | 'admin';
 
-const navByVariant: Record<HeaderVariant, Array<{ href: string; label: string }>> = {
+interface NavigationItem {
+  href: string;
+  label: string;
+  action?: boolean;
+}
+
+const navByVariant: Record<HeaderVariant, NavigationItem[]> = {
   public: [
     { href: '/#search', label: 'Tìm chuyến' },
-    { href: '/#travel-notes', label: 'Kinh nghiệm đi xe' },
-    { href: '/login', label: 'Đăng nhập' },
+    { href: '/assistant', label: 'Trợ lý' },
+    { href: '/#travel-notes', label: 'Hướng dẫn' },
+    { href: '/login', label: 'Đăng nhập', action: true },
   ],
   account: [
     { href: '/', label: 'Đặt vé' },
+    { href: '/assistant', label: 'Trợ lý' },
     { href: '/account/bookings', label: 'Vé của tôi' },
     { href: '/account/passengers', label: 'Hành khách' },
-    { href: '/login', label: 'Tài khoản' },
+    { href: '/login', label: 'Tài khoản', action: true },
   ],
   staff: [
-    { href: '/', label: 'Trang đặt vé' },
-    { href: '/login', label: 'Tài khoản' },
-    { href: '/staff/check-in', label: 'Check-in' },
+    { href: '/', label: 'Đặt vé' },
+    { href: '/assistant', label: 'Trợ lý' },
+    { href: '/staff/check-in', label: 'Check-in', action: true },
   ],
   admin: [
-    { href: '/', label: 'Trang đặt vé' },
+    { href: '/', label: 'Đặt vé' },
     { href: '/staff/check-in', label: 'Check-in' },
     { href: '/admin/trips', label: 'Lịch chạy' },
     { href: '/admin/operations', label: 'Báo cáo' },
-    { href: '/admin/catalog', label: 'Danh mục' },
+    { href: '/admin/catalog', label: 'Danh mục', action: true },
   ],
 };
 
@@ -36,7 +48,11 @@ const labelByVariant: Record<HeaderVariant, string> = {
 };
 
 export function SiteHeader({ variant = 'public' }: { variant?: HeaderVariant }) {
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const links = navByVariant[variant];
+
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   return (
     <header className="site-header">
@@ -49,16 +65,42 @@ export function SiteHeader({ variant = 'public' }: { variant?: HeaderVariant }) 
           <small>{labelByVariant[variant]}</small>
         </span>
       </Link>
-      <nav className="site-nav" aria-label="Điều hướng chính">
-        {links.map((link, index) => (
-          <Link
-            className={index === links.length - 1 ? 'nav-cta' : undefined}
-            href={link.href}
-            key={link.href}
-          >
-            {link.label}
-          </Link>
-        ))}
+
+      <button
+        className="site-menu-toggle"
+        type="button"
+        aria-expanded={menuOpen}
+        aria-controls="site-navigation"
+        onClick={() => setMenuOpen((current) => !current)}
+      >
+        <span>{menuOpen ? 'Đóng' : 'Menu'}</span>
+        <i aria-hidden="true" />
+      </button>
+
+      <nav
+        className="site-nav"
+        id="site-navigation"
+        aria-label="Điều hướng chính"
+        data-open={menuOpen}
+      >
+        {links.map((link) => {
+          const active = link.href.includes('#')
+            ? false
+            : link.href === '/'
+              ? pathname === '/'
+              : pathname === link.href || pathname.startsWith(`${link.href}/`);
+          return (
+            <Link
+              className={link.action ? 'nav-cta' : undefined}
+              href={link.href}
+              key={link.href}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => setMenuOpen(false)}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
       </nav>
     </header>
   );

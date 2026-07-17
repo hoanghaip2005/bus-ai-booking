@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { SiteHeader } from '../components/site-header';
+import { SiteFooter } from '../components/site-footer';
 import { TripFilters } from './trip-filters';
 import { TripCard, type TripSummary } from './trip-card';
 
@@ -166,6 +167,7 @@ export function TripResults() {
           </ol>
         </section>
       )}
+      <SiteFooter />
     </main>
   );
 }

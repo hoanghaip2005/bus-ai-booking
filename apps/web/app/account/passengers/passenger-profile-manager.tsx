@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { getStoredAuthSession } from '../../lib/auth-session';
@@ -17,13 +18,16 @@ export function PassengerProfileManager() {
   const [editing, setEditing] = useState<PassengerProfile>();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Đang tải hành khách thường dùng…');
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     const session = getStoredAuthSession();
     if (session?.user.role !== 'CUSTOMER') {
+      setSignedIn(false);
       setMessage('Vui lòng đăng nhập để quản lý hành khách thường dùng.');
       return;
     }
+    setSignedIn(true);
     void reload();
   }, []);
 
@@ -33,7 +37,7 @@ export function PassengerProfileManager() {
       setProfiles(next);
       setMessage(next.length ? '' : 'Bạn chưa lưu hành khách thường dùng nào.');
     } catch (error) {
-      setMessage(clientMessage(error));
+      handleFailure(error);
     }
   }
 
@@ -55,7 +59,7 @@ export function PassengerProfileManager() {
       setMessage(editing ? 'Đã cập nhật hành khách.' : 'Đã lưu hành khách mới.');
       await reload();
     } catch (error) {
-      setMessage(clientMessage(error));
+      handleFailure(error);
     } finally {
       setBusy(false);
     }
@@ -69,10 +73,44 @@ export function PassengerProfileManager() {
       setMessage('Đã xóa hành khách thường dùng.');
       await reload();
     } catch (error) {
-      setMessage(clientMessage(error));
+      handleFailure(error);
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleFailure(error: unknown) {
+    if (error instanceof PassengerProfileClientError && error.code === 'UNAUTHENTICATED') {
+      setSignedIn(false);
+      setProfiles([]);
+    }
+    setMessage(clientMessage(error));
+  }
+
+  if (signedIn !== true) {
+    return (
+      <section className="profile-manager" aria-live="polite">
+        <header className="profile-manager-heading">
+          <div>
+            <p className="eyebrow">Hành khách thường dùng</p>
+            <h1>Điền một lần. Đi nhiều chuyến.</h1>
+          </div>
+          <span>0/20 hồ sơ</span>
+        </header>
+        {signedIn === false ? (
+          <div className="account-access-state">
+            <strong>Đăng nhập để lưu hành khách</strong>
+            <p>{message}</p>
+            <Link href="/login">Đăng nhập tài khoản</Link>
+          </div>
+        ) : (
+          <div className="results-state" role="status">
+            <strong>Đang mở danh sách hành khách…</strong>
+            <span>Thông tin đã lưu sẽ xuất hiện trong giây lát.</span>
+          </div>
+        )}
+      </section>
+    );
   }
 
   return (

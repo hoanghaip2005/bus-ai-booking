@@ -155,6 +155,17 @@ export function SeatSelector({ tripId, initialSeatMap, unitPriceVnd }: SeatSelec
     [bookingStorageKey, holdStorageKey, refreshSeatMap],
   );
 
+  const startNewBooking = useCallback(() => {
+    sessionStorage.removeItem(bookingStorageKey);
+    sessionStorage.removeItem(holdStorageKey);
+    holdTokenRef.current = undefined;
+    setBooking(null);
+    setHold(null);
+    setSelectedSeatIds([]);
+    setError(undefined);
+    void refreshSeatMap(getCheckoutSessionId());
+  }, [bookingStorageKey, holdStorageKey, refreshSeatMap]);
+
   function toggleSeat(seatId: string): void {
     if (hold || busy) return;
     setError(undefined);
@@ -219,7 +230,12 @@ export function SeatSelector({ tripId, initialSeatMap, unitPriceVnd }: SeatSelec
         onAction={() => void (hold ? releaseCurrentHold() : holdSelectedSeats())}
       />
       {hold || booking ? (
-        <GuestBookingForm hold={hold} booking={booking} onBookingUpdated={updateBooking} />
+        <GuestBookingForm
+          hold={hold}
+          booking={booking}
+          onBookingUpdated={updateBooking}
+          onStartNewBooking={startNewBooking}
+        />
       ) : null}
     </>
   );

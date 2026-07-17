@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { CatalogApiError, getRoutePageData } from '../../lib/catalog-api';
 import { SiteHeader } from '../../components/site-header';
+import { SiteFooter } from '../../components/site-footer';
 import { TripCard } from '../../trips/trip-card';
 
 interface RoutePageProps {
@@ -86,6 +87,7 @@ export default async function RoutePage({ params, searchParams }: RoutePageProps
             </div>
           </section>
         )}
+        <SiteFooter />
       </main>
     );
   } catch (error) {

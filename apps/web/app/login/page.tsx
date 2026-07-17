@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { LoginForm } from './login-form';
+import { SiteFooter } from '../components/site-footer';
 import { SiteHeader } from '../components/site-header';
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export default function LoginPage() {
     <main className="auth-page">
       <SiteHeader />
       <LoginForm />
+      <SiteFooter />
     </main>
   );
 }

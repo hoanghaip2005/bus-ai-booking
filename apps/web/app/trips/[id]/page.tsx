@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { SiteHeader } from '../../components/site-header';
+import { SiteFooter } from '../../components/site-footer';
 import { CatalogApiError, getSeatMap, getTripDetail, type TripDetail } from '../../lib/catalog-api';
 import { displayOperatorName } from '../../lib/display';
 import { SeatSelector } from './seat-selector';
@@ -110,6 +111,7 @@ export default async function TripDetailPage({ params }: TripDetailPageProps) {
             ))}
           </div>
         </section>
+        <SiteFooter />
       </main>
     );
   } catch (error) {

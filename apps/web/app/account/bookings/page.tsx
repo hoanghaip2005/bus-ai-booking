@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { BookingHistory } from './booking-history';
+import { SiteFooter } from '../../components/site-footer';
 import { SiteHeader } from '../../components/site-header';
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export default function BookingHistoryPage() {
     <main className="account-page">
       <SiteHeader variant="account" />
       <BookingHistory />
+      <SiteFooter />
     </main>
   );
 }

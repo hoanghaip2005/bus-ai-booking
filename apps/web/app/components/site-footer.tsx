@@ -3,16 +3,25 @@ import Link from 'next/link';
 export function SiteFooter() {
   return (
     <footer className="site-footer">
-      <div>
-        <strong>Bến Việt</strong>
-        <span>Đi xa, nhẹ đầu.</span>
+      <div className="site-footer-brand">
+        <span className="brand-mark" aria-hidden="true">
+          BV
+        </span>
+        <div>
+          <strong>Bến Việt</strong>
+          <span>Đi xa, nhẹ đầu.</span>
+        </div>
       </div>
-      <div className="site-footer-links">
-        <Link href="/#travel-notes">Hướng dẫn đặt vé</Link>
+      <nav className="site-footer-links" aria-label="Liên kết cuối trang">
+        <Link href="/#search">Tìm chuyến</Link>
+        <Link href="/assistant">Trợ lý đặt vé</Link>
         <Link href="/#policies">Chính sách vé</Link>
-        <Link href="/#support">Hỗ trợ</Link>
+        <Link href="/login">Tài khoản</Link>
+      </nav>
+      <div className="site-footer-meta">
+        <span>Hỗ trợ hành trình liên tỉnh</span>
+        <span>© 2026 Bến Việt</span>
       </div>
-      <span className="site-footer-meta">© 2026 Bến Việt</span>
     </footer>
   );
 }

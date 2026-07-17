@@ -190,6 +190,25 @@ export function AdminOperationsConsole() {
     }
   }
 
+  if (!session) {
+    return (
+      <section className="operations-shell" aria-labelledby="operations-title">
+        <div className="operations-heading">
+          <div>
+            <p className="eyebrow">Tổng quan kinh doanh</p>
+            <h1 id="operations-title">Theo dõi đặt vé và doanh thu trong một màn hình.</h1>
+          </div>
+          <span>Chưa đăng nhập</span>
+        </div>
+        <div className="account-access-state">
+          <strong>Đăng nhập để xem báo cáo vận hành</strong>
+          <p>{message}</p>
+          <a href="/login">Đăng nhập quản trị</a>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="operations-shell" aria-labelledby="operations-title">
       <div className="operations-heading">
@@ -217,7 +236,6 @@ export function AdminOperationsConsole() {
         <button type="submit" disabled={!session || busy}>
           {busy ? 'Đang tải…' : 'Áp dụng'}
         </button>
-        {!session && <a href="/login">Đăng nhập quản trị</a>}
       </form>
 
       <p className="operations-message" role="status" aria-live="polite">
@@ -277,7 +295,7 @@ export function AdminOperationsConsole() {
                   <article key={route.routeId} className="operations-row">
                     <div>
                       <strong>{route.routeLabel}</strong>
-                      <span>{route.routeCode || route.routeId}</span>
+                      <span>{route.routeCode || 'Chưa có mã tuyến'}</span>
                     </div>
                     <div>
                       <strong>{route.searchCount.toLocaleString('vi-VN')} lượt tìm</strong>
@@ -361,10 +379,8 @@ export function AdminOperationsConsole() {
                 data.auditEvents.map((event) => (
                   <article key={event.id} className="operations-row">
                     <div>
-                      <strong>{event.action}</strong>
-                      <span>
-                        {targetTypeLabel(event.targetType)} · {event.targetId.slice(0, 8)}
-                      </span>
+                      <strong>{actionLabel(event.action)}</strong>
+                      <span>{targetTypeLabel(event.targetType)}</span>
                     </div>
                     <div>
                       <strong>{roleLabel(event.actorRole)}</strong>
@@ -407,14 +423,30 @@ function bookingStatusLabel(status: string): string {
 function roleLabel(role: string): string {
   if (role === 'ADMIN') return 'Quản trị viên';
   if (role === 'STAFF') return 'Nhân viên';
-  return 'Khách hàng';
+  if (role === 'CUSTOMER') return 'Khách hàng';
+  if (role === 'SYSTEM') return 'Hệ thống';
+  return 'Không xác định';
 }
 
 function targetTypeLabel(type: string): string {
+  if (type === 'LOCATION') return 'Điểm đón/trả';
+  if (type === 'ROUTE') return 'Tuyến xe';
+  if (type === 'VEHICLE') return 'Xe';
+  if (type === 'SEAT_LAYOUT') return 'Sơ đồ ghế';
   if (type === 'TRIP') return 'Chuyến xe';
   if (type === 'BOOKING') return 'Đơn đặt vé';
   if (type === 'TICKET') return 'Vé';
-  return type;
+  return 'Bản ghi vận hành';
+}
+
+function actionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    BOOKING_PAID: 'Đặt vé đã thanh toán',
+    BOOKING_CANCELLED: 'Đặt vé đã hủy',
+    TICKET_CHECKED_IN: 'Hành khách đã check-in',
+    TRIP_CREATED: 'Đã tạo chuyến xe',
+  };
+  return labels[action] ?? 'Đã cập nhật dữ liệu vận hành';
 }
 
 function formatDateTime(value: string): string {

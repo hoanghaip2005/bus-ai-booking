@@ -48,8 +48,8 @@ test('ADMIN opens operations dashboard and blocks a seat idempotently through Gr
     const createTripButton = page.getByRole('button', { name: 'Tạo chuyến' });
     await createTripButton.click();
     const creationMessage = page.locator('.operations-message');
-    await expect(creationMessage).toContainText(/Đã tạo: [0-9a-f-]{36}/i);
-    createdTripId = (await creationMessage.textContent())?.match(/[0-9a-f-]{36}/i)?.[0];
+    await expect(creationMessage).toContainText('Đã tạo chuyến mới.');
+    createdTripId = await page.getByLabel('Mã chuyến').inputValue();
     expect(createdTripId).toBeTruthy();
     await expect(createTripButton).toBeEnabled();
 

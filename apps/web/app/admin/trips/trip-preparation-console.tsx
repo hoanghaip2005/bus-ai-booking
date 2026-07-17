@@ -42,7 +42,7 @@ export function TripPreparationConsole() {
   const [departureAt, setDepartureAt] = useState('2030-07-01T07:00');
   const [arrivalAt, setArrivalAt] = useState('2030-07-01T14:00');
   const [priceVnd, setPriceVnd] = useState('280000');
-  const [seatTripId, setSeatTripId] = useState('00000000-0000-4000-8000-000000000704');
+  const [seatTripId, setSeatTripId] = useState('');
   const [seatIds, setSeatIds] = useState('A03');
   const [blockReason, setBlockReason] = useState('Bảo trì ghế');
   const [busy, setBusy] = useState(false);
@@ -101,7 +101,11 @@ export function TripPreparationConsole() {
         session.accessToken,
       );
       setBusy(false);
-      setMessage(`${result.created ? 'Đã tạo' : 'Chuyến đã tồn tại'}: ${result.tripId}.`);
+      setMessage(
+        result.created
+          ? 'Đã tạo chuyến mới. Bạn có thể tiếp tục quản lý ghế cho chuyến này.'
+          : 'Chuyến này đã tồn tại và đã được chọn để quản lý ghế.',
+      );
       setSeatTripId(result.tripId);
     } catch (error) {
       setBusy(false);
@@ -139,6 +143,25 @@ export function TripPreparationConsole() {
       setBusy(false);
       setMessage(errorMessage(error));
     }
+  }
+
+  if (!session) {
+    return (
+      <section className="operations-shell" aria-labelledby="trip-preparation-title">
+        <div className="operations-heading">
+          <div>
+            <p className="eyebrow">Điều phối lịch chạy</p>
+            <h1 id="trip-preparation-title">Tạo chuyến mới và quản lý ghế tạm khóa.</h1>
+          </div>
+          <span>Chưa đăng nhập</span>
+        </div>
+        <div className="account-access-state">
+          <strong>Đăng nhập để điều phối chuyến xe</strong>
+          <p>{message}</p>
+          <a href="/login">Đăng nhập quản trị</a>
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -206,7 +229,6 @@ export function TripPreparationConsole() {
           <button disabled={busy || !session || !routeId || !vehicle || !priceVnd} type="submit">
             {busy ? 'Đang xử lý…' : 'Tạo chuyến'}
           </button>
-          {!session && <a href="/login">Đăng nhập quản trị</a>}
         </form>
         <div className="ticket-results" aria-live="polite">
           <p className="operations-message" role="status">
@@ -217,7 +239,11 @@ export function TripPreparationConsole() {
             <h2>Tạm khóa ghế</h2>
             <label>
               Mã chuyến
-              <input value={seatTripId} onChange={(event) => setSeatTripId(event.target.value)} />
+              <input
+                value={seatTripId}
+                onChange={(event) => setSeatTripId(event.target.value)}
+                placeholder="Tạo chuyến mới hoặc nhập mã chuyến"
+              />
             </label>
             <label>
               Mã ghế, cách nhau bằng dấu phẩy

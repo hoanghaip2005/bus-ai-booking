@@ -36,7 +36,12 @@ export function TripCard({ trip }: { trip: TripSummary }) {
           <i aria-hidden="true" />
         </p>
         <div>
-          <time dateTime={trip.arrivalAt}>{formatTime(trip.arrivalAt)}</time>
+          <time dateTime={trip.arrivalAt}>
+            {formatTime(trip.arrivalAt)}
+            {localDate(trip.arrivalAt) !== localDate(trip.departureAt) ? (
+              <small className="arrival-day-offset">+1 ngày</small>
+            ) : null}
+          </time>
           <span>{trip.dropoffName}</span>
         </div>
       </div>
@@ -56,6 +61,13 @@ const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
   hour12: false,
 });
 
+const localDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
 const moneyFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
   currency: 'VND',
@@ -64,6 +76,10 @@ const moneyFormatter = new Intl.NumberFormat('vi-VN', {
 
 function formatTime(value: string): string {
   return timeFormatter.format(new Date(value));
+}
+
+function localDate(value: string): string {
+  return localDateFormatter.format(new Date(value));
 }
 
 function formatMoney(value: number): string {

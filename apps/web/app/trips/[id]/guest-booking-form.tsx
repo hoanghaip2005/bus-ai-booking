@@ -18,9 +18,15 @@ interface GuestBookingFormProps {
   hold: SeatHold | null;
   booking: GuestBooking | null;
   onBookingUpdated: (booking: GuestBooking) => void;
+  onStartNewBooking: () => void;
 }
 
-export function GuestBookingForm({ hold, booking, onBookingUpdated }: GuestBookingFormProps) {
+export function GuestBookingForm({
+  hold,
+  booking,
+  onBookingUpdated,
+  onStartNewBooking,
+}: GuestBookingFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>();
   const [profiles, setProfiles] = useState<PassengerProfile[]>([]);
@@ -81,7 +87,13 @@ export function GuestBookingForm({ hold, booking, onBookingUpdated }: GuestBooki
   }
 
   if (booking) {
-    return <SimulatedPaymentPanel booking={booking} onBookingUpdated={onBookingUpdated} />;
+    return (
+      <SimulatedPaymentPanel
+        booking={booking}
+        onBookingUpdated={onBookingUpdated}
+        onStartNewBooking={onStartNewBooking}
+      />
+    );
   }
 
   if (!hold) return null;

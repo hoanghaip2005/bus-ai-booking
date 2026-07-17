@@ -11,8 +11,21 @@ export function TripSearchForm() {
   const [destination, setDestination] = useState<LocationValue | null>(null);
   const [departureDate, setDepartureDate] = useState('');
   const [isReady, setIsReady] = useState(false);
+  const [today, setToday] = useState('');
 
-  useEffect(() => setIsReady(true), []);
+  useEffect(() => {
+    setIsReady(true);
+    setToday(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()),
+    );
+  }, []);
+
+  const sameLocation = Boolean(origin && destination && origin.id === destination.id);
 
   return (
     <form
@@ -21,7 +34,7 @@ export function TripSearchForm() {
       data-ready={isReady}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!origin || !destination || !departureDate) return;
+        if (!origin || !destination || !departureDate || sameLocation) return;
         const parameters = new URLSearchParams({
           originId: origin.id,
           destinationId: destination.id,
@@ -68,6 +81,7 @@ export function TripSearchForm() {
           name="departureDate"
           type="date"
           required
+          min={today || undefined}
           value={departureDate}
           onChange={(event) => setDepartureDate(event.target.value)}
         />
@@ -75,12 +89,16 @@ export function TripSearchForm() {
       <button
         className="search-button"
         type="submit"
-        disabled={!origin || !destination || !departureDate}
+        disabled={!origin || !destination || !departureDate || sameLocation}
       >
         Tìm chuyến
         <span aria-hidden="true">→</span>
       </button>
-      <p className="form-note">Tìm bằng tên tỉnh, thành phố, bến xe hoặc tên gọi quen thuộc.</p>
+      <p className="form-note" role="status">
+        {sameLocation
+          ? 'Điểm đi và điểm đến cần khác nhau.'
+          : 'Tìm bằng tên tỉnh, thành phố, bến xe hoặc tên gọi quen thuộc.'}
+      </p>
     </form>
   );
 }

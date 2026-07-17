@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { authenticatedHeaders, authStorageKey, getStoredAccessToken } from '../../lib/auth-session';
@@ -32,13 +33,16 @@ export function BookingHistory() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string>();
   const [message, setMessage] = useState('');
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!getStoredAccessToken()) {
+      setSignedIn(false);
       setLoading(false);
       setMessage('Vui lòng đăng nhập để xem vé của bạn.');
       return;
     }
+    setSignedIn(true);
     void loadPage();
   }, []);
 
@@ -52,7 +56,13 @@ export function BookingHistory() {
       setMessage(page.nodes.length === 0 && !after ? 'Bạn chưa có vé nào.' : '');
     } catch (error) {
       const failure = error as { code?: string; message?: string };
-      if (failure.code === 'UNAUTHENTICATED') sessionStorage.removeItem(authStorageKey);
+      if (failure.code === 'UNAUTHENTICATED') {
+        sessionStorage.removeItem(authStorageKey);
+        setSignedIn(false);
+        setBookings([]);
+        setMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        return;
+      }
       setMessage(failure.message ?? 'Không thể tải lịch sử đặt vé lúc này.');
     } finally {
       setLoading(false);
@@ -74,7 +84,13 @@ export function BookingHistory() {
       );
     } catch (error) {
       const failure = error as { code?: string; message?: string };
-      if (failure.code === 'UNAUTHENTICATED') sessionStorage.removeItem(authStorageKey);
+      if (failure.code === 'UNAUTHENTICATED') {
+        sessionStorage.removeItem(authStorageKey);
+        setSignedIn(false);
+        setBookings([]);
+        setMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        return;
+      }
       setMessage(failure.message ?? 'Không thể hủy vé lúc này.');
     } finally {
       setCancellingId(undefined);
@@ -91,7 +107,15 @@ export function BookingHistory() {
         <span>{bookings.length.toString().padStart(2, '0')} lượt đặt vé</span>
       </div>
 
-      {bookings.length > 0 && (
+      {signedIn === false ? (
+        <div className="account-access-state">
+          <strong>Đăng nhập để xem vé đã đặt</strong>
+          <p>{message}</p>
+          <Link href="/login">Đăng nhập tài khoản</Link>
+        </div>
+      ) : null}
+
+      {signedIn && bookings.length > 0 && (
         <div className="booking-history-list">
           {bookings.map((booking) => (
             <article className="booking-history-card" key={booking.id}>
@@ -138,13 +162,13 @@ export function BookingHistory() {
         </div>
       )}
 
-      {message && <p className="booking-history-message">{message}</p>}
-      {hasNextPage && cursor && (
+      {signedIn && message && <p className="booking-history-message">{message}</p>}
+      {signedIn && hasNextPage && cursor && (
         <button disabled={loading} onClick={() => void loadPage(cursor)} type="button">
           {loading ? 'Đang tải…' : 'Xem thêm'}
         </button>
       )}
-      {!hasNextPage && bookings.length > 0 && (
+      {signedIn && !hasNextPage && bookings.length > 0 && (
         <p className="booking-history-end">Đã hết lịch sử.</p>
       )}
     </section>

@@ -86,7 +86,11 @@ export default function AdminCatalogPage() {
         session.accessToken,
       );
       setMessage(
-        `${result.created ? 'Đã tạo' : result.changed ? 'Đã cập nhật' : 'Không thay đổi'} ${result.id}.`,
+        result.created
+          ? 'Đã tạo dữ liệu mới.'
+          : result.changed
+            ? 'Đã lưu thay đổi.'
+            : 'Không có thay đổi mới.',
       );
       await reload(session);
     } catch (error) {
@@ -106,13 +110,24 @@ export default function AdminCatalogPage() {
           </div>
           <span>{session?.user.displayName ?? 'Chưa đăng nhập'}</span>
         </div>
-        <p className="operations-message" role="status">
-          {busy ? 'Đang xử lý…' : message}
-        </p>
-        {catalog && session ? (
+        {session ? (
+          <p className="operations-message" role="status">
+            {busy ? 'Đang xử lý…' : message}
+          </p>
+        ) : null}
+        {!session ? (
+          <div className="account-access-state">
+            <strong>Đăng nhập để quản lý danh mục</strong>
+            <p>{message}</p>
+            <a href="/login">Đăng nhập quản trị</a>
+          </div>
+        ) : catalog ? (
           <CatalogForms catalog={catalog} disabled={busy} mutate={mutate} />
         ) : (
-          <a href="/login">Đăng nhập quản trị</a>
+          <div className="results-state" role="status">
+            <strong>Đang tải danh mục vận hành…</strong>
+            <span>Tuyến, xe và điểm đón sẽ xuất hiện trong giây lát.</span>
+          </div>
         )}
       </section>
     </main>
@@ -280,10 +295,14 @@ function CatalogForms({
           label="Chuyến"
           value={tripId}
           setValue={setTripId}
-          items={catalog.trips.map((item) => ({
-            ...item,
-            code: `${item.status} · ${item.id.slice(0, 8)}`,
-          }))}
+          items={catalog.trips.map((item) => {
+            const route = catalog.routes.find((candidate) => candidate.id === item.routeId);
+            const vehicle = catalog.vehicles.find((candidate) => candidate.id === item.vehicleId);
+            return {
+              ...item,
+              code: `${formatTripDateTime(item.departureAt)} · ${route?.code ?? 'Tuyến chưa đặt mã'} · ${vehicle?.code ?? 'Xe chưa đặt mã'} · ${tripStatusLabel(item.status)}`,
+            };
+          })}
         />
         <p>Chỉ có thể cập nhật chuyến chưa khởi hành.</p>
       </Form>
@@ -299,8 +318,8 @@ function CatalogForms({
         ].map((item) => (
           <article className="operations-row" key={`${item.resourceType}-${item.id}`}>
             <div>
-              <strong>{item.code ?? item.name}</strong>
-              <span>{item.resourceType}</span>
+              <strong>{itemLabel(item)}</strong>
+              <span>{resourceTypeLabel(item.resourceType)}</span>
             </div>
             <button
               disabled={disabled}
@@ -367,12 +386,45 @@ function Select({
       <select value={value} onChange={(event) => setValue(event.target.value)}>
         {items.map((item) => (
           <option key={item.id} value={item.id}>
-            {item.code ?? item.name ?? item.id}
+            {itemLabel(item)}
           </option>
         ))}
       </select>
     </label>
   );
+}
+
+function itemLabel(item: Item): string {
+  if (item.code && item.name) return `${item.code} · ${item.name}`;
+  return item.code ?? item.name ?? 'Chưa đặt tên';
+}
+
+function resourceTypeLabel(type: string): string {
+  if (type === 'LOCATION') return 'Điểm đón/trả';
+  if (type === 'ROUTE') return 'Tuyến xe';
+  if (type === 'VEHICLE') return 'Phương tiện';
+  return 'Danh mục';
+}
+
+function tripStatusLabel(status: string): string {
+  if (status === 'DRAFT') return 'Bản nháp';
+  if (status === 'SCHEDULED') return 'Đã lên lịch';
+  if (status === 'BOARDING') return 'Đang đón khách';
+  if (status === 'DEPARTED') return 'Đã khởi hành';
+  if (status === 'COMPLETED') return 'Đã hoàn tất';
+  if (status === 'CANCELLED') return 'Đã hủy';
+  return 'Chưa xác định';
+}
+
+function formatTripDateTime(value: string): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
 }
 
 async function graphql<T>(
