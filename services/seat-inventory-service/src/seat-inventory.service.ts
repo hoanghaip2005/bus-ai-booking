@@ -332,9 +332,10 @@ export class SeatInventoryService {
     const holdToken = request.holdToken ?? '';
     validateHoldToken(holdToken);
     const owner = validateOwner(request.owner);
-    validateIdempotencyKey(request.idempotencyKey);
-    const result = await this.seatHoldStore.release(holdToken, owner);
-    if (result.status !== 'RELEASED') {
+    const idempotencyKey = validateIdempotencyKey(request.idempotencyKey);
+    const result = await this.seatHoldStore.release(holdToken, owner, idempotencyKey);
+    if (result.status === 'IDEMPOTENCY_CONFLICT') throw new IdempotencyConflictError();
+    if (result.status !== 'RELEASED' && result.status !== 'REPLAY') {
       return {
         released: false,
         seatIds: [],
@@ -345,7 +346,7 @@ export class SeatInventoryService {
       released: true,
       tripId: result.hold.tripId,
       seatIds: result.hold.seatIds,
-      releasedAt: new Date().toISOString(),
+      releasedAt: result.releasedAt,
       requestId: request.requestId ?? 'missing-request-id',
     };
   }

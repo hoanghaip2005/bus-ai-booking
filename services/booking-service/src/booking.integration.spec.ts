@@ -7,6 +7,7 @@ import { BookingDatabase } from './booking.database';
 import { BookingRepository } from './booking.repository';
 import {
   BookingIdempotencyConflictError,
+  BookingInvalidStateTransitionError,
   BookingService,
   BookingWrongTripError,
 } from './booking.service';
@@ -372,6 +373,47 @@ describe('BookingService guest booking integration', () => {
         }),
       ]),
     );
+  });
+
+  it('does not persist ticket references for a cancelled booking', async () => {
+    const owner = createOwner();
+    const hold = await createHold(owner, ['A11'], 30);
+    const created = await bookingService.createBooking(
+      bookingRequest(owner, hold.token, randomUUID(), ['A11']),
+    );
+    const cancelledAt = new Date().toISOString();
+    await bookingDatabase.query(
+      `UPDATE booking.bookings
+       SET status = 'CANCELLED', paid_at = $2, cancelled_at = $2, updated_at = $2,
+           paid_payment_attempt_id = $3, payment_idempotency_key = $4
+       WHERE id = $1`,
+      [created.booking.id, cancelledAt, randomUUID(), 'cancelled-ticket-payment-seed'],
+    );
+    const passenger = created.booking.passengers[0]!;
+    const ticketId = randomUUID();
+
+    await expect(
+      bookingService.markTicketIssued({
+        bookingId: created.booking.id,
+        sourceEventId: randomUUID(),
+        issuedAt: cancelledAt,
+        ticketCount: 1,
+        tickets: [
+          {
+            ticketId,
+            passengerId: passenger.id,
+            ticketCode: `VT-2030-CANCELLED-${passenger.seatId}`,
+            qrPayload: `${created.booking.bookingCode}-${ticketId}`,
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BookingInvalidStateTransitionError);
+
+    const ticketCount = await bookingDatabase.query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM booking.issued_ticket_refs WHERE booking_id = $1',
+      [created.booking.id],
+    );
+    expect(ticketCount.rows[0]?.count).toBe('0');
   });
 });
 

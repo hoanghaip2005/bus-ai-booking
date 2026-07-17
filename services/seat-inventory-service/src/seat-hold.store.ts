@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   seatStatusChangedChannel,
@@ -37,6 +37,10 @@ export type AcquireHoldResult =
   | { status: 'ACQUIRED' | 'REPLAY'; hold: ActiveSeatHold }
   | { status: 'SEAT_UNAVAILABLE'; seatId: string }
   | { status: 'IDEMPOTENCY_CONFLICT' };
+
+export type ReleaseHoldResult =
+  | { status: 'RELEASED' | 'REPLAY'; hold: ActiveSeatHold; releasedAt: string }
+  | { status: 'NOT_ACTIVE' | 'OWNER_MISMATCH' | 'IDEMPOTENCY_CONFLICT' };
 
 interface SeatHoldStoreOptions {
   namespace?: string;
@@ -81,42 +85,64 @@ return {'ACQUIRED', ARGV[3]}
 `;
 
 const RELEASE_HOLD_SCRIPT = `
+local existing = redis.call('GET', KEYS[4])
+if existing then
+  local idempotency = cjson.decode(existing)
+  if idempotency.fingerprint ~= ARGV[1] then
+    return {'IDEMPOTENCY_CONFLICT'}
+  end
+  if idempotency.status == 'RELEASED' then
+    return {'REPLAY', idempotency.hold, idempotency.releasedAt}
+  end
+  return {idempotency.status}
+end
+
 local serialized = redis.call('GET', KEYS[1])
 if not serialized then
+  redis.call('SET', KEYS[4], cjson.encode({
+    fingerprint = ARGV[1],
+    status = 'NOT_ACTIVE'
+  }), 'EX', ARGV[9])
   return {'NOT_ACTIVE'}
 end
 
 local hold = cjson.decode(serialized)
-if hold.owner.type ~= ARGV[2] or hold.owner.id ~= ARGV[3] then
+if hold.owner.type ~= ARGV[3] or hold.owner.id ~= ARGV[4] then
   return {'OWNER_MISMATCH'}
 end
 
-local versionKey = ARGV[4] .. ':trip:' .. hold.tripId .. ':version'
+local versionKey = ARGV[5] .. ':trip:' .. hold.tripId .. ':version'
 local version = redis.call('INCR', versionKey)
 
 for _, seatId in ipairs(hold.seatIds) do
-  local seatKey = ARGV[4] .. ':trip:' .. hold.tripId .. ':seat:' .. seatId
-  if redis.call('GET', seatKey) == ARGV[1] then
+  local seatKey = ARGV[5] .. ':trip:' .. hold.tripId .. ':seat:' .. seatId
+  if redis.call('GET', seatKey) == ARGV[2] then
     redis.call('DEL', seatKey)
   end
 end
 
 redis.call('DEL', KEYS[1])
-redis.call('ZREM', KEYS[2], ARGV[1])
+redis.call('ZREM', KEYS[2], ARGV[2])
 redis.call('DEL', KEYS[3])
+redis.call('SET', KEYS[4], cjson.encode({
+  fingerprint = ARGV[1],
+  status = 'RELEASED',
+  hold = serialized,
+  releasedAt = ARGV[7]
+}), 'EX', ARGV[9])
 local event = {
-  eventId = ARGV[5],
+  eventId = ARGV[6],
   eventType = 'SeatStatusChangedV1',
   eventVersion = 1,
-  occurredAt = ARGV[6],
+  occurredAt = ARGV[7],
   producer = 'seat-inventory-service',
   tripId = hold.tripId,
   seatIds = hold.seatIds,
   status = 'AVAILABLE',
   version = version
 }
-redis.call('PUBLISH', ARGV[7], cjson.encode(event))
-return {'RELEASED', serialized}
+redis.call('PUBLISH', ARGV[8], cjson.encode(event))
+return {'RELEASED', serialized, ARGV[7]}
 `;
 
 const CONSUME_CONFIRMED_HOLD_SCRIPT = `
@@ -324,27 +350,44 @@ export class SeatHoldStore implements OnApplicationBootstrap, OnModuleDestroy {
   async release(
     holdToken: string,
     owner: HoldOwner,
-  ): Promise<
-    { status: 'RELEASED'; hold: ActiveSeatHold } | { status: 'NOT_ACTIVE' | 'OWNER_MISMATCH' }
-  > {
+    idempotencyKey: string,
+  ): Promise<ReleaseHoldResult> {
     await this.ensureConnected();
+    const releasedAt = new Date().toISOString();
+    const fingerprint = createHash('sha256')
+      .update(`${holdToken}\0${owner.type}\0${owner.id}`)
+      .digest('hex');
     const result = await this.client.eval(RELEASE_HOLD_SCRIPT, {
-      keys: [this.holdKey(holdToken), this.expiryKey(), this.expiryMetadataKey(holdToken)],
+      keys: [
+        this.holdKey(holdToken),
+        this.expiryKey(),
+        this.expiryMetadataKey(holdToken),
+        this.releaseIdempotencyKey(owner, idempotencyKey),
+      ],
       arguments: [
+        fingerprint,
         holdToken,
         owner.type,
         owner.id,
         this.namespace,
         randomUUID(),
-        new Date().toISOString(),
+        releasedAt,
         this.eventChannel,
+        String(this.idempotencyTtlSeconds),
       ],
     });
     const values = redisArray(result);
-    if (values[0] === 'RELEASED') {
-      return { status: 'RELEASED', hold: parseHold(requiredValue(values[1])) };
+    if (values[0] === 'RELEASED' || values[0] === 'REPLAY') {
+      return {
+        status: values[0],
+        hold: parseHold(requiredValue(values[1])),
+        releasedAt: requiredValue(values[2]),
+      };
     }
-    return { status: values[0] === 'OWNER_MISMATCH' ? 'OWNER_MISMATCH' : 'NOT_ACTIVE' };
+    if (values[0] === 'OWNER_MISMATCH' || values[0] === 'IDEMPOTENCY_CONFLICT') {
+      return { status: values[0] };
+    }
+    return { status: 'NOT_ACTIVE' };
   }
 
   async consumeConfirmedHold(
@@ -474,6 +517,10 @@ export class SeatHoldStore implements OnApplicationBootstrap, OnModuleDestroy {
 
   private idempotencyKey(hold: ActiveSeatHold): string {
     return `${this.namespace}:idempotency:${hold.owner.type}:${hold.owner.id}:${hold.idempotencyKey}`;
+  }
+
+  private releaseIdempotencyKey(owner: HoldOwner, idempotencyKey: string): string {
+    return `${this.namespace}:release-idempotency:${owner.type}:${owner.id}:${idempotencyKey}`;
   }
 
   private expiryKey(): string {

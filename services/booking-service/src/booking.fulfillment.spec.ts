@@ -69,6 +69,23 @@ describe('BookingService ticket fulfillment', () => {
     ).rejects.toBeInstanceOf(BookingValidationError);
     expect(markTicketIssued).not.toHaveBeenCalled();
   });
+
+  it('does not register ticket references after cancellation', async () => {
+    const snapshot = fulfillmentSnapshot('CANCELLED');
+    const markTicketIssued = vi.fn();
+    const service = fulfillmentService({ snapshot, markTicketIssued });
+
+    await expect(
+      service.markTicketIssued({
+        bookingId: snapshot.booking.id,
+        sourceEventId: randomUUID(),
+        issuedAt: new Date().toISOString(),
+        ticketCount: snapshot.booking.passengers.length,
+        tickets: issuedTicketReferences(snapshot),
+      }),
+    ).rejects.toBeInstanceOf(BookingInvalidStateTransitionError);
+    expect(markTicketIssued).not.toHaveBeenCalled();
+  });
 });
 
 describe('BookingController ticket fulfillment authorization', () => {

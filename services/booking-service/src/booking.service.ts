@@ -427,6 +427,9 @@ export class BookingService {
     }
     const snapshot = await this.bookingRepository.findFulfillmentSnapshot(bookingId);
     if (!snapshot) throw new BookingPaymentForbiddenError();
+    if (!['PAID', 'TICKET_ISSUED', 'CHECKED_IN', 'COMPLETED'].includes(snapshot.booking.status)) {
+      throw new BookingInvalidStateTransitionError('Booking cannot be marked ticket issued.');
+    }
     if (snapshot.booking.passengers.length !== request.ticketCount) {
       throw new BookingValidationError('Ticket count must match the booking passenger count.');
     }
