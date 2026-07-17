@@ -258,24 +258,42 @@ describe('SeatInventoryService Redis hold lifecycle', () => {
         (await service.getSeatMap({ tripId })).seatMap.seats.find((seat) => seat.id === 'A07'),
       ).toMatchObject({ status: 'HELD' });
 
-      const released = await service.releaseHold({
+      const releaseRequest = {
         holdToken: response.hold.token,
         owner,
         idempotencyKey: randomUUID(),
-      });
+        requestId: 'release-hold-idempotent-request',
+      };
+      const released = await service.releaseHold(releaseRequest);
       await waitFor(() => events.some((event) => event.status === 'AVAILABLE'));
       expect(released).toMatchObject({ released: true, tripId, seatIds: ['A07'] });
       expect(
         (await service.getSeatMap({ tripId })).seatMap.seats.find((seat) => seat.id === 'A07'),
       ).toMatchObject({ status: 'AVAILABLE' });
+      await expect(service.releaseHold(releaseRequest)).resolves.toEqual(released);
+      expect(events.filter((event) => event.status === 'AVAILABLE')).toHaveLength(1);
+
+      const secondHold = await service.holdSeats({
+        tripId,
+        seatIds: ['A07'],
+        owner,
+        idempotencyKey: randomUUID(),
+        requestedTtlSeconds: 30,
+      });
       await expect(
         service.releaseHold({
-          holdToken: response.hold.token,
-          owner,
-          idempotencyKey: randomUUID(),
+          ...releaseRequest,
+          holdToken: secondHold.hold.token,
         }),
-      ).resolves.toMatchObject({ released: false, seatIds: [] });
-      expect(events.filter((event) => event.status === 'AVAILABLE')).toHaveLength(1);
+      ).rejects.toMatchObject({ name: 'IdempotencyConflictError' });
+      expect(
+        (await service.getSeatMap({ tripId })).seatMap.seats.find((seat) => seat.id === 'A07'),
+      ).toMatchObject({ status: 'HELD' });
+      await service.releaseHold({
+        holdToken: secondHold.hold.token,
+        owner,
+        idempotencyKey: randomUUID(),
+      });
     } finally {
       await subscriber.quit();
     }

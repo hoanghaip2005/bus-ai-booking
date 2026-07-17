@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { CatalogApiError, getRoutePageData } from '../../lib/catalog-api';
+import { SiteHeader } from '../../components/site-header';
 import { TripCard } from '../../trips/trip-card';
 
 interface RoutePageProps {
@@ -44,22 +45,20 @@ export default async function RoutePage({ params, searchParams }: RoutePageProps
     const data = await getRoutePageData(route.originCode, route.destinationCode, date);
     return (
       <main className="results-page route-page">
-        <header className="results-header">
-          <Brand />
+        <SiteHeader />
+        <div className="page-toolbar">
           <Link className="back-link" href="/#search">
-            Tìm tuyến khác
+            ← Tìm tuyến khác
           </Link>
-        </header>
+          <span>Lịch chạy theo tuyến</span>
+        </div>
 
         <section className="results-intro route-intro" aria-labelledby="route-title">
-          <p className="eyebrow">Trang tuyến xe · {formatLocalDate(data.travelDate)}</p>
+          <p className="eyebrow">Lịch chạy ngày {formatLocalDate(data.travelDate)}</p>
           <h1 id="route-title">
             {data.origin.name} <span aria-hidden="true">→</span> {data.destination.name}
           </h1>
-          <p>
-            Lịch chạy được lấy trực tiếp từ hệ thống vận hành. Giờ hiển thị theo múi giờ Việt Nam,
-            giá vé tính bằng VND.
-          </p>
+          <p>So sánh giờ khởi hành, loại xe, giá vé và số ghế còn lại trên tuyến này.</p>
         </section>
 
         {data.trips.length ? (
@@ -93,20 +92,6 @@ export default async function RoutePage({ params, searchParams }: RoutePageProps
     if (error instanceof CatalogApiError && error.code === 'NOT_FOUND') notFound();
     throw error;
   }
-}
-
-function Brand() {
-  return (
-    <Link className="brand" href="/" aria-label="Bến Việt - về trang tìm chuyến">
-      <span className="brand-mark" aria-hidden="true">
-        BV
-      </span>
-      <span>
-        <strong>Bến Việt</strong>
-        <small>Đi xa, nhẹ đầu.</small>
-      </span>
-    </Link>
-  );
 }
 
 function parseRouteSlug(value: string): { originCode: string; destinationCode: string } | null {

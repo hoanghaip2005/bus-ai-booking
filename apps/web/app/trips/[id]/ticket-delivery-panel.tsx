@@ -79,8 +79,8 @@ export function TicketDeliveryPanel({ bookingId }: { bookingId: string }) {
       <span className="ticket-pulse" aria-hidden="true" />
       <p>
         {error
-          ? 'Vé đang được thử tải lại sau khi worker tạm gián đoạn.'
-          : 'Ticket Worker đang sinh vé HTML, PDF và mã QR mô phỏng…'}
+          ? 'Vé đang được tải lại. Bạn vui lòng chờ thêm một chút.'
+          : 'Vé điện tử đang được chuẩn bị…'}
       </p>
     </div>
   );

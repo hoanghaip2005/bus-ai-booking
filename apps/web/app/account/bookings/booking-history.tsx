@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { authenticatedHeaders, authStorageKey, getStoredAccessToken } from '../../lib/auth-session';
+import { displayOperatorName } from '../../lib/display';
 
 interface BookingHistoryItem {
   id: string;
@@ -35,7 +36,7 @@ export function BookingHistory() {
   useEffect(() => {
     if (!getStoredAccessToken()) {
       setLoading(false);
-      setMessage('Đăng nhập tài khoản CUSTOMER để xem lịch sử đặt vé.');
+      setMessage('Vui lòng đăng nhập để xem vé của bạn.');
       return;
     }
     void loadPage();
@@ -48,11 +49,11 @@ export function BookingHistory() {
       setBookings((current) => (after ? [...current, ...page.nodes] : page.nodes));
       setCursor(page.pageInfo.endCursor ?? undefined);
       setHasNextPage(page.pageInfo.hasNextPage);
-      setMessage(page.nodes.length === 0 && !after ? 'Bạn chưa có booking nào.' : '');
+      setMessage(page.nodes.length === 0 && !after ? 'Bạn chưa có vé nào.' : '');
     } catch (error) {
       const failure = error as { code?: string; message?: string };
       if (failure.code === 'UNAUTHENTICATED') sessionStorage.removeItem(authStorageKey);
-      setMessage(failure.message ?? 'Không thể tải lịch sử booking lúc này.');
+      setMessage(failure.message ?? 'Không thể tải lịch sử đặt vé lúc này.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export function BookingHistory() {
     } catch (error) {
       const failure = error as { code?: string; message?: string };
       if (failure.code === 'UNAUTHENTICATED') sessionStorage.removeItem(authStorageKey);
-      setMessage(failure.message ?? 'Không thể hủy booking lúc này.');
+      setMessage(failure.message ?? 'Không thể hủy vé lúc này.');
     } finally {
       setCancellingId(undefined);
     }
@@ -84,10 +85,10 @@ export function BookingHistory() {
     <section className="booking-history" aria-live="polite">
       <div className="booking-history-heading">
         <div>
-          <p className="eyebrow">Customer ownership · cancellation policy</p>
-          <h1>Những hành trình thuộc về bạn.</h1>
+          <p className="eyebrow">Vé của tôi</p>
+          <h1>Mọi hành trình, trong một nơi.</h1>
         </div>
-        <span>{bookings.length.toString().padStart(2, '0')} booking</span>
+        <span>{bookings.length.toString().padStart(2, '0')} lượt đặt vé</span>
       </div>
 
       {bookings.length > 0 && (
@@ -100,7 +101,7 @@ export function BookingHistory() {
                   {booking.trip.originName} → {booking.trip.destinationName}
                 </h2>
                 <p>
-                  {booking.trip.operatorName} ·{' '}
+                  {displayOperatorName(booking.trip.operatorName)} ·{' '}
                   {new Date(booking.trip.departureAt).toLocaleString('vi-VN', {
                     timeZone: 'Asia/Ho_Chi_Minh',
                   })}
@@ -113,7 +114,7 @@ export function BookingHistory() {
                 </div>
                 <div>
                   <dt>Trạng thái</dt>
-                  <dd>{booking.status}</dd>
+                  <dd>{bookingStatusLabel(booking.status)}</dd>
                 </div>
                 <div>
                   <dt>Tổng tiền</dt>
@@ -128,7 +129,7 @@ export function BookingHistory() {
                     onClick={() => void cancel(booking)}
                     type="button"
                   >
-                    {cancellingId === booking.id ? 'Đang hủy…' : 'Hủy booking'}
+                    {cancellingId === booking.id ? 'Đang hủy…' : 'Hủy vé'}
                   </button>
                 </div>
               )}
@@ -140,7 +141,7 @@ export function BookingHistory() {
       {message && <p className="booking-history-message">{message}</p>}
       {hasNextPage && cursor && (
         <button disabled={loading} onClick={() => void loadPage(cursor)} type="button">
-          {loading ? 'Đang tải…' : 'Xem thêm booking'}
+          {loading ? 'Đang tải…' : 'Xem thêm'}
         </button>
       )}
       {!hasNextPage && bookings.length > 0 && (
@@ -155,6 +156,19 @@ function canCancel(booking: BookingHistoryItem): boolean {
     (booking.status === 'PAID' || booking.status === 'TICKET_ISSUED') &&
     Date.parse(booking.trip.departureAt) > Date.now()
   );
+}
+
+function bookingStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    PENDING_PAYMENT: 'Chờ thanh toán',
+    PAID: 'Đã thanh toán',
+    TICKET_ISSUED: 'Đã phát hành vé',
+    CHECKED_IN: 'Đã check-in',
+    COMPLETED: 'Đã hoàn thành',
+    CANCELLED: 'Đã hủy',
+    EXPIRED: 'Đã hết hạn',
+  };
+  return labels[status] ?? status;
 }
 
 async function fetchMyBookings(after?: string): Promise<BookingPage> {
@@ -181,7 +195,7 @@ async function fetchMyBookings(after?: string): Promise<BookingPage> {
   };
   const error = body.errors?.[0];
   if (!response.ok || error || !body.data) {
-    throw Object.assign(new Error(error?.message ?? 'Không thể tải lịch sử booking lúc này.'), {
+    throw Object.assign(new Error(error?.message ?? 'Không thể tải lịch sử đặt vé lúc này.'), {
       code: error?.extensions?.code,
     });
   }
@@ -224,7 +238,7 @@ async function cancelMyBooking(bookingId: string): Promise<{
   };
   const error = body.errors?.[0];
   if (!response.ok || error || !body.data) {
-    throw Object.assign(new Error(error?.message ?? 'Không thể hủy booking lúc này.'), {
+    throw Object.assign(new Error(error?.message ?? 'Không thể hủy vé lúc này.'), {
       code: error?.extensions?.code,
     });
   }

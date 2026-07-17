@@ -429,6 +429,16 @@ export class BookingRepository {
     tickets: PersistedTicketReference[],
   ): Promise<TicketIssuedTransition> {
     return this.database.withTransaction(async (client) => {
+      const lockedBooking = await client.query<{ status: BookingStatus } & QueryResultRow>(
+        'SELECT status FROM booking.bookings WHERE id = $1 FOR UPDATE',
+        [bookingId],
+      );
+      const currentStatus = lockedBooking.rows[0]?.status;
+      if (!currentStatus) throw new Error('Booking was not found before ticket issuance.');
+      if (!['PAID', 'TICKET_ISSUED', 'CHECKED_IN', 'COMPLETED'].includes(currentStatus)) {
+        return { status: currentStatus, transitioned: false };
+      }
+
       for (const ticket of tickets) {
         await client.query(
           `INSERT INTO booking.issued_ticket_refs (

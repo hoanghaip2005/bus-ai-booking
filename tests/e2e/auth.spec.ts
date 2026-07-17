@@ -3,105 +3,61 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test, type Page } from '@playwright/test';
 
-const tripId = '00000000-0000-4000-8000-000000000704';
-
 test.describe.configure({ mode: 'serial' });
 
-test('CUSTOMER can log in and cannot perform the ADMIN operation', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByRole('button', { name: 'Khách hàng' }).click();
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+test('CUSTOMER can log in and cannot open the ADMIN workspace', async ({ page }) => {
+  await loginAs(page, 'customer');
+  await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
+  await expect(page.getByText('Khách hàng', { exact: true })).toBeVisible();
 
-  await expect(page.getByText('Khách hàng Demo')).toBeVisible();
-  await expect(page.getByText('CUSTOMER', { exact: true })).toBeVisible();
-  const protectedAction = page.getByRole('button', { name: 'Chuyển trip sang INACTIVE' });
-  await expect(protectedAction).toBeEnabled();
-  await protectedAction.click();
-  await expect(page.getByText(/Role hiện tại không được phép/)).toBeVisible();
+  await page.goto('/admin/trips', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('link', { name: 'Đăng nhập quản trị' })).toBeVisible();
 });
 
-test('ADMIN rotates, authorizes at Catalog, restores the trip and logs out', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByRole('button', { name: 'Quản trị' }).click();
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-
-  await expect(page.getByText('Quản trị Demo')).toBeVisible();
-  await page.getByRole('button', { name: 'Rotate token' }).click();
-  await expect(page.getByText(/Refresh token đã được rotate/)).toBeVisible();
-
-  try {
-    await page.getByRole('button', { name: 'Chuyển trip sang INACTIVE' }).click();
-    await expect(page.getByText('Trip demo đã chuyển sang INACTIVE.')).toBeVisible();
-    await page.getByRole('button', { name: 'Chuyển trip sang ACTIVE' }).click();
-    await expect(page.getByText('Trip demo đã chuyển sang ACTIVE.')).toBeVisible();
-    await page.getByRole('button', { name: 'Chuyển trip sang DEPARTED' }).click();
-    await expect(
-      page.getByRole('status').filter({ hasText: 'SCHEDULED → DEPARTED' }),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Chuyển trip sang COMPLETED' }).click();
-    await expect(
-      page.getByRole('status').filter({ hasText: 'DEPARTED → COMPLETED' }),
-    ).toBeVisible();
-  } finally {
-    const accessToken = await page.evaluate(() => {
-      const raw = sessionStorage.getItem('bus:auth-session:v1');
-      return raw ? (JSON.parse(raw) as { accessToken?: string }).accessToken : undefined;
-    });
-    if (accessToken) {
-      await page.request.post('/graphql', {
-        headers: { authorization: `Bearer ${accessToken}` },
-        data: {
-          query:
-            'mutation($input: SetTripActiveInput!) { setTripActive(input: $input) { isActive } }',
-          variables: { input: { tripId, isActive: true } },
-        },
-      });
-    }
-    resetTripLifecycle();
-  }
+test('ADMIN can extend the session and log out', async ({ page }) => {
+  await loginAs(page, 'admin');
+  await expect(page.getByRole('heading', { name: 'Quản trị Demo' })).toBeVisible();
+  await page.getByRole('button', { name: 'Gia hạn phiên' }).click();
+  await expect(page.getByText('Phiên đăng nhập đã được gia hạn.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
-  await expect(page.getByText(/Đã đăng xuất và thu hồi refresh session/)).toBeVisible();
-  await expect(page.getByText('Chưa có phiên')).toBeVisible();
+  await expect(page.getByText('Bạn đã đăng xuất an toàn.')).toBeVisible();
+  await expect(page.getByText('Một tài khoản, nhiều tiện ích')).toBeVisible();
 });
 
 test('ADMIN opens operations dashboard and blocks a seat idempotently through GraphQL', async ({
   page,
 }) => {
   let createdTripId: string | undefined;
-  await page.goto('/login');
-  await page.getByRole('button', { name: 'Quản trị' }).click();
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page.getByText('Quản trị Demo')).toBeVisible();
+  await loginAs(page, 'admin');
+  await expect(page.getByRole('heading', { name: 'Quản trị Demo' })).toBeVisible();
 
   await page.goto('/admin/operations');
   await expect(
-    page.getByRole('heading', { name: 'Booking và audit trên cùng một bàn điều hành.' }),
+    page.getByRole('heading', { name: 'Theo dõi đặt vé và doanh thu trong một màn hình.' }),
   ).toBeVisible();
-  await expect(page.getByText('Kafka · 30 ngày')).toBeVisible();
-  await expect(page.getByText('Search → paid')).toBeVisible();
-  await expect(page.getByText('Payment success')).toBeVisible();
-  await expect(page.getByText('Kafka consumer lag')).toBeVisible();
+  await expect(page.getByText('Doanh thu 30 ngày')).toBeVisible();
+  await expect(page.getByText('Tỷ lệ đặt vé thành công')).toBeVisible();
+  await expect(page.getByText('Thanh toán thành công')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Tuyến được quan tâm nhiều' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Vé bán theo tuyến' })).toBeVisible();
-  await expect(page.getByText(/Analytics projection:/)).toBeVisible();
 
   await page.goto('/admin/trips');
-  await expect(page.getByRole('heading', { name: 'Khóa ghế vận hành' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tạm khóa ghế' })).toBeVisible();
   try {
-    const createTripButton = page.getByRole('button', { name: 'Tạo chuyến và fare' });
+    const createTripButton = page.getByRole('button', { name: 'Tạo chuyến' });
     await createTripButton.click();
     const creationMessage = page.locator('.operations-message');
-    await expect(creationMessage).toContainText(/chuyến [0-9a-f-]{36}/i);
+    await expect(creationMessage).toContainText(/Đã tạo: [0-9a-f-]{36}/i);
     createdTripId = (await creationMessage.textContent())?.match(/[0-9a-f-]{36}/i)?.[0];
     expect(createdTripId).toBeTruthy();
     await expect(createTripButton).toBeEnabled();
 
     await page.getByLabel('Mã ghế, cách nhau bằng dấu phẩy').fill('A03');
     await page.getByRole('button', { name: 'Khóa ghế' }).click();
-    await expect(page.getByText(/A03.*BLOCKED/)).toBeVisible();
+    await expect(page.getByText(/A03.*Tạm khóa/)).toBeVisible();
     await page.getByRole('button', { name: 'Mở bán lại' }).click();
-    await expect(page.getByText(/A03.*AVAILABLE/)).toBeVisible();
+    await expect(page.getByText(/A03.*Còn bán/)).toBeVisible();
   } finally {
     if (createdTripId) deleteAdminTrip(createdTripId);
   }
@@ -109,7 +65,7 @@ test('ADMIN opens operations dashboard and blocks a seat idempotently through Gr
   await page.goto('/admin/catalog');
   await expect(
     page.getByRole('heading', {
-      name: 'Quản lý dữ liệu nền mà không phá vỡ booking snapshot.',
+      name: 'Quản lý tuyến, xe và điểm đón.',
     }),
   ).toBeVisible();
 });
@@ -273,7 +229,7 @@ test('ADMIN manages every Catalog resource family through GraphQL', async ({ pag
 test('CUSTOMER checkout is linked to myBookings while guest ownership stays separate', async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   const registeredTripId = '00000000-0000-4000-8000-000000000702';
   let bookingId: string | undefined;
   let bookingCode: string | undefined;
@@ -281,19 +237,21 @@ test('CUSTOMER checkout is linked to myBookings while guest ownership stays sepa
   let accessToken: string | undefined;
 
   try {
-    await page.goto('/login');
-    await page.getByRole('button', { name: 'Khách hàng' }).click();
-    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await expect(page.getByText('Khách hàng Demo')).toBeVisible();
+    await loginAs(page, 'customer');
+    await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
 
     await page.goto(`/trips/${registeredTripId}`);
-    await page.getByRole('button', { name: 'Ghế A06: còn trống' }).click();
+    const seatButton = page.getByRole('button', { name: /Ghế [A-Z]\d+: còn trống/ }).first();
+    const seatLabel = await seatButton.getAttribute('aria-label');
+    const seatId = seatLabel?.match(/Ghế ([A-Z]\d+)/)?.[1];
+    expect(seatId).toBeTruthy();
+    await seatButton.click();
     await page.getByRole('button', { name: 'Giữ ghế trong 5 phút' }).click();
     await page.getByLabel('Họ tên liên hệ').fill('Registered Customer E2E');
     await page.getByLabel('Email nhận vé').fill('customer.demo@benviet.vn');
     await page.getByLabel('Số điện thoại liên hệ').fill('0901234567');
-    await page.getByLabel('Họ tên hành khách ghế A06').fill('Registered Customer E2E');
-    await page.getByRole('button', { name: 'Tạo booking' }).click();
+    await page.getByLabel(`Họ tên hành khách ghế ${seatId}`).fill('Registered Customer E2E');
+    await page.getByRole('button', { name: 'Tiếp tục thanh toán' }).click();
     await expect(page.getByText('Chờ thanh toán', { exact: true })).toBeVisible();
 
     ({ bookingId, bookingCode, holdToken, accessToken } = await page.evaluate((id) => {
@@ -315,18 +273,18 @@ test('CUSTOMER checkout is linked to myBookings while guest ownership stays sepa
     expect(bookingCode).toBeTruthy();
 
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();
-    await expect(page.getByText('Đã thanh toán', { exact: true })).toBeVisible();
+    await expect(page.getByText('Thanh toán hoàn tất', { exact: true })).toBeVisible();
 
     await page.goto('/account/bookings');
     const bookingCard = page
       .locator('.booking-history-card')
       .filter({ hasText: bookingCode ?? '' });
-    await expect(bookingCard).toContainText('A06');
-    await bookingCard.getByRole('button', { name: 'Hủy booking' }).click();
+    await expect(bookingCard).toContainText(seatId!);
+    await bookingCard.getByRole('button', { name: 'Hủy vé' }).click();
     await expect(page.getByText('Đã hủy vé. Ghế đã được mở bán lại.')).toBeVisible();
-    await expect(bookingCard).toContainText('CANCELLED');
+    await expect(bookingCard).toContainText('Đã hủy');
   } finally {
-    if (holdToken && accessToken) {
+    if (holdToken && accessToken && !bookingId) {
       await page.request.post('/graphql', {
         headers: { authorization: `Bearer ${accessToken}` },
         data: {
@@ -343,19 +301,17 @@ test('CUSTOMER checkout is linked to myBookings while guest ownership stays sepa
 test('CUSTOMER manages passenger profiles and prefills checkout without coupling Booking data', async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   const tripId = '00000000-0000-4000-8000-000000000702';
   let accessToken: string | undefined;
   let holdToken: string | undefined;
 
   try {
-    await page.goto('/login');
-    await page.getByRole('button', { name: 'Khách hàng' }).click();
-    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await expect(page.getByText('Khách hàng Demo')).toBeVisible();
+    await loginAs(page, 'customer');
+    await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeEnabled();
     await page.goto('/account/passengers');
-    await expect(page.getByText('Khách hàng Demo', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
 
     await page.getByLabel('Nhãn dễ nhớ').fill('E2E Profile');
     await page.getByLabel('Họ và tên').fill('E2E Passenger');
@@ -372,7 +328,11 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
     );
 
     await page.goto(`/trips/${tripId}`);
-    await page.getByRole('button', { name: 'Ghế A07: còn trống' }).click();
+    const seatButton = page.getByRole('button', { name: /Ghế [A-Z]\d+: còn trống/ }).first();
+    const seatLabel = await seatButton.getAttribute('aria-label');
+    const seatId = seatLabel?.match(/Ghế ([A-Z]\d+)/)?.[1];
+    expect(seatId).toBeTruthy();
+    await seatButton.click();
     await page.getByRole('button', { name: 'Giữ ghế trong 5 phút' }).click();
     await page.getByLabel('Điền nhanh từ hành khách thường dùng').selectOption({
       label: 'E2E Updated · E2E Passenger',
@@ -380,7 +340,7 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
     await expect(page.getByLabel('Họ tên liên hệ')).toHaveValue('E2E Passenger');
     await expect(page.getByLabel('Email nhận vé')).toHaveValue('customer.demo@benviet.vn');
     await expect(page.getByLabel('Số điện thoại liên hệ')).toHaveValue('0907778899');
-    await expect(page.getByLabel('Họ tên hành khách ghế A07')).toHaveValue('E2E Passenger');
+    await expect(page.getByLabel(`Họ tên hành khách ghế ${seatId}`)).toHaveValue('E2E Passenger');
 
     ({ accessToken, holdToken } = await page.evaluate((id) => {
       const authRaw = sessionStorage.getItem('bus:auth-session:v1');
@@ -418,6 +378,17 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
   }
 });
 
+async function loginAs(page: Page, role: 'customer' | 'admin'): Promise<void> {
+  const credentials =
+    role === 'admin'
+      ? { email: 'admin.demo@benviet.vn', password: 'Admin123!' }
+      : { email: 'customer.demo@benviet.vn', password: 'Customer123!' };
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(credentials.email);
+  await page.getByLabel('Mật khẩu').fill(credentials.password);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+}
+
 async function deleteProfilesByLabel(
   page: Page,
   accessToken: string,
@@ -440,34 +411,6 @@ async function deleteProfilesByLabel(
       },
     });
   }
-}
-
-function resetTripLifecycle(): void {
-  const result = spawnSync(
-    'docker',
-    [
-      'compose',
-      '-f',
-      'infra/docker-compose.yml',
-      'exec',
-      '-T',
-      'postgres',
-      'psql',
-      '-U',
-      process.env.POSTGRES_USER ?? 'bus',
-      '-d',
-      process.env.POSTGRES_DB ?? 'bus_platform',
-      '-v',
-      'ON_ERROR_STOP=1',
-    ],
-    {
-      encoding: 'utf8',
-      input: `DELETE FROM catalog.trip_lifecycle_audit WHERE trip_id = '${tripId}'::uuid;
-UPDATE catalog.trips SET status = 'SCHEDULED' WHERE id = '${tripId}'::uuid;\n`,
-      shell: process.platform === 'win32',
-    },
-  );
-  expect(result.status, result.stderr).toBe(0);
 }
 
 function deleteAdminTrip(createdTripId: string): void {

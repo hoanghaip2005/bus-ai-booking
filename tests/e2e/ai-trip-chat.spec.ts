@@ -7,11 +7,11 @@ test('guest asks a natural-language trip question and receives seeded tool data'
 }) => {
   await page.goto('/');
   const chat = page.locator('#ai-assistant');
-  await expect(chat.getByText('VERIFIED TOOLS ONLINE')).toBeVisible();
+  await expect(chat.getByText('TRỢ LÝ ĐANG TRỰC TUYẾN')).toBeVisible();
 
   await chat.getByRole('button', { name: 'Gửi hỏi' }).click();
   await expect(chat.getByText(/Tìm thấy 3 chuyến/)).toBeVisible({ timeout: 20_000 });
-  await expect(chat.getByText(/Phương Trang Demo/)).toBeVisible();
+  await expect(chat.getByText(/Phương Trang/)).toBeVisible();
   await expect(chat.getByText(/00000000-0000-4000-8000-000000000701/)).toBeVisible();
 });
 

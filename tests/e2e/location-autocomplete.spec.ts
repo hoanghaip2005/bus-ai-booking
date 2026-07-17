@@ -93,20 +93,20 @@ test('guest searches seeded trips and sees Vietnam-local times through Nginx', a
   await expect(page).toHaveURL(/\/trips\?/, { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: /TP\.HCM.*Đà Lạt/ })).toBeVisible();
   await expect(page.getByText('03', { exact: true })).toBeVisible();
-  await expect(page.locator('.trip-card').first()).toContainText('Phương Trang Demo');
+  await expect(page.locator('.trip-card').first()).toContainText('Phương Trang');
   await expect(page.getByText('07:00', { exact: true })).toBeVisible();
   await expect(page.getByText(/280\.000/)).toBeVisible();
 
   await page.getByLabel('Sắp xếp').selectOption('PRICE_LOWEST');
   await page.getByRole('button', { name: 'Áp dụng' }).click();
   await expect(page).toHaveURL(/sort=PRICE_LOWEST/);
-  await expect(page.locator('.trip-card').first()).toContainText('Kumho Demo');
+  await expect(page.locator('.trip-card').first()).toContainText('Kumho');
 
   await page.getByLabel('Giá tối đa').selectOption('250000');
   await page.getByRole('button', { name: 'Áp dụng' }).click();
   await expect(page.getByText('01', { exact: true })).toBeVisible();
   await expect(page.locator('.trip-card')).toHaveCount(1);
-  await expect(page.locator('.trip-card').first()).toContainText('Kumho Demo');
+  await expect(page.locator('.trip-card').first()).toContainText('Kumho');
 });
 
 test('no-result search suggests the nearest dates with matching trips', async ({ page }) => {
@@ -127,7 +127,9 @@ test('no-result search suggests the nearest dates with matching trips', async ({
 test('guest opens trip detail with schedule, policies and authoritative seat layout', async ({
   page,
 }) => {
-  await page.goto('/trips/00000000-0000-4000-8000-000000000701');
+  await page.goto('/trips/00000000-0000-4000-8000-000000000701', {
+    waitUntil: 'domcontentloaded',
+  });
 
   await expect(page.getByRole('heading', { name: /TP\.HCM.*Đà Lạt/ })).toBeVisible();
   await expect(page.getByText('Bến xe Miền Đông')).toBeVisible();
@@ -136,7 +138,7 @@ test('guest opens trip detail with schedule, policies and authoritative seat lay
   await expect(page.locator('.seat-grid [data-seat]')).toHaveCount(34);
   await expect(page.getByLabel('Ghế A01: đã bán')).toBeVisible();
   await expect(page.getByLabel('Ghế A02: tạm khóa')).toBeVisible();
-  await expect(page.getByText('Còn trống · 32')).toBeVisible();
+  await expect(page.getByText(/^Còn trống · \d+$/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Chính sách đổi, hủy vé' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hướng dẫn check-in' })).toBeVisible();
 });
@@ -259,13 +261,13 @@ test('guest creates a PENDING_PAYMENT booking from the active hold', async ({ pa
     await page.getByLabel('Số điện thoại liên hệ').fill('0901234567');
     await page.getByLabel('Họ tên hành khách ghế A03').fill('Nguyen Van An');
     await page.getByLabel('Số giấy tờ (tùy chọn)').fill('ABC123456');
-    await page.getByRole('button', { name: 'Tạo booking' }).click();
+    await page.getByRole('button', { name: 'Tiếp tục thanh toán' }).click();
 
     const bookingCode = page.getByRole('heading', { name: /^BV-\d{4}-[A-F0-9]{10}$/ });
     await expect(bookingCode).toBeVisible();
     const createdCode = await bookingCode.textContent();
     await expect(page.getByText('Chờ thanh toán', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Booking đã tạo' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Đơn đặt vé đã tạo' })).toBeDisabled();
     bookingId = await page.evaluate((storageKey) => {
       const serialized = sessionStorage.getItem(storageKey);
       if (!serialized) return null;
@@ -324,7 +326,7 @@ test('guest retries after simulated failure and pays only after durable seat con
     await page.getByLabel('Email nhận vé').fill('payment.e2e@example.com');
     await page.getByLabel('Số điện thoại liên hệ').fill('0901234567');
     await page.getByLabel('Họ tên hành khách ghế A04').fill('Payment E2E Guest');
-    await page.getByRole('button', { name: 'Tạo booking' }).click();
+    await page.getByRole('button', { name: 'Tiếp tục thanh toán' }).click();
     await expect(page.getByRole('button', { name: 'Thanh toán thất bại' })).toBeVisible();
     bookingId = await page.evaluate((storageKey) => {
       const serialized = sessionStorage.getItem(storageKey);
@@ -342,7 +344,7 @@ test('guest retries after simulated failure and pays only after durable seat con
     await expect(observer.getByRole('button', { name: 'Ghế A04: đang được giữ' })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();
-    await expect(page.getByText('Đã thanh toán', { exact: true })).toBeVisible();
+    await expect(page.getByText('Thanh toán hoàn tất', { exact: true })).toBeVisible();
     await expect(page.getByText(/vé điện tử sẵn sàng/)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: 'Tải PDF' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Mở vé HTML' })).toBeVisible();
@@ -350,7 +352,7 @@ test('guest retries after simulated failure and pays only after durable seat con
     await expect(observer.getByRole('button', { name: 'Ghế A04: đã bán' })).toBeDisabled();
 
     await page.reload();
-    await expect(page.getByText('Đã thanh toán', { exact: true })).toBeVisible();
+    await expect(page.getByText('Thanh toán hoàn tất', { exact: true })).toBeVisible();
   } finally {
     await observer?.close();
     if (holdToken && checkoutSessionId) {

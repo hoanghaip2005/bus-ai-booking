@@ -55,8 +55,7 @@ export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPa
         <p className="eyebrow">Thanh toán hoàn tất</p>
         <h3 id="payment-title">{booking.bookingCode}</h3>
         <p role="status">
-          Booking đã chuyển sang <strong>Đã thanh toán</strong>. Ghế được ghi nhận durable và không
-          còn phụ thuộc Redis hold.
+          Thanh toán thành công. Ghế của bạn đã được xác nhận và không thể bị người khác chọn.
         </p>
         <BookingSummary booking={booking} />
         <TicketDeliveryPanel bookingId={booking.id} />
@@ -67,9 +66,9 @@ export function SimulatedPaymentPanel({ booking, onBookingUpdated }: SimulatedPa
   if (booking.status === 'EXPIRED') {
     return (
       <section className="booking-confirmation payment-expired" aria-labelledby="payment-title">
-        <p className="eyebrow">Booking hết hạn</p>
+        <p className="eyebrow">Đơn đặt vé hết hạn</p>
         <h3 id="payment-title">{booking.bookingCode}</h3>
-        <p role="status">Thời gian giữ ghế đã hết. Vui lòng chọn lại ghế để tạo booking mới.</p>
+        <p role="status">Thời gian giữ ghế đã hết. Vui lòng chọn lại ghế để tạo đơn mới.</p>
       </section>
     );
   }
@@ -141,13 +140,13 @@ function BookingSummary({ booking }: { booking: GuestBooking }) {
 
 function paymentErrorMessage(error: unknown): string {
   if (error instanceof BookingClientError && error.code === 'HOLD_EXPIRED') {
-    return 'Thời gian giữ ghế đã hết. Booking không thể thanh toán.';
+    return 'Thời gian giữ ghế đã hết. Đơn đặt vé không thể thanh toán.';
   }
   if (error instanceof BookingClientError && error.code === 'SEAT_UNAVAILABLE') {
-    return 'Ghế không còn khả dụng để xác nhận. Vui lòng tạo booking mới.';
+    return 'Ghế không còn khả dụng để xác nhận. Vui lòng tạo đơn mới.';
   }
   if (error instanceof BookingClientError && error.code === 'INVALID_STATE_TRANSITION') {
-    return 'Booking không còn ở trạng thái có thể thanh toán.';
+    return 'Đơn đặt vé không còn ở trạng thái có thể thanh toán.';
   }
   return error instanceof Error ? error.message : 'Không thể xử lý thanh toán mô phỏng.';
 }

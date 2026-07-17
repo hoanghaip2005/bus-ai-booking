@@ -67,19 +67,19 @@ export function AiTripChat() {
   return (
     <section className="ai-chat" id="ai-assistant" aria-labelledby="ai-chat-title">
       <div className="ai-chat-intro">
-        <p className="eyebrow">Trợ lý hành trình · AI SDK</p>
-        <h2 id="ai-chat-title">Hỏi như đang nhắn cho một người quen đường.</h2>
+        <p className="eyebrow">Trợ lý Bến Việt</p>
+        <h2 id="ai-chat-title">Chưa biết chọn chuyến nào? Cứ hỏi.</h2>
         <p>
-          Trợ lý chỉ trả lời dữ liệu có thật từ hệ thống, có thể tìm chuyến, giải thích chính sách
-          có nguồn và tra cứu booking khi bạn cung cấp đủ mã booking cùng email.
+          Tìm chuyến bằng câu hỏi tự nhiên, xem chính sách vé hoặc tra cứu hành trình bằng mã đặt vé
+          và email.
         </p>
       </div>
 
       <div className="ai-chat-console">
         <div className="ai-chat-status">
           <span aria-hidden="true" />
-          <strong>VERIFIED TOOLS ONLINE</strong>
-          <small>Search · Booking · Policy</small>
+          <strong>TRỢ LÝ ĐANG TRỰC TUYẾN</strong>
+          <small>Chuyến xe · Vé · Chính sách</small>
         </div>
         <div className="ai-chat-messages" aria-live="polite" aria-busy={status === 'streaming'}>
           {messages.length === 0 ? (

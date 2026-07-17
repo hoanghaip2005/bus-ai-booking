@@ -71,7 +71,7 @@ describe('AI trip assistant', () => {
       stopWhen: stepCountIs(2),
     });
 
-    await expect(result.text).resolves.toContain('Phương Trang Demo');
+    await expect(result.text).resolves.toContain('Phương Trang');
     await expect(result.text).resolves.toContain('00000000-0000-4000-8000-000000000701');
   });
 

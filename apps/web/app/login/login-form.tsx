@@ -8,27 +8,17 @@ import {
   login,
   logout,
   refreshSession,
-  setTripActive,
-  transitionTripStatus,
   viewer,
 } from './auth-client';
 import { authStorageKey } from '../lib/auth-session';
 
-const demoAccounts = [
-  { label: 'Khách hàng', email: 'customer.demo@benviet.vn', password: 'Customer123!' },
-  { label: 'Nhân viên', email: 'staff.demo@benviet.vn', password: 'Staff123!' },
-  { label: 'Quản trị', email: 'admin.demo@benviet.vn', password: 'Admin123!' },
-] as const;
-
 export function LoginForm() {
-  const [email, setEmail] = useState<string>(demoAccounts[0].email);
-  const [password, setPassword] = useState<string>(demoAccounts[0].password);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [message, setMessage] = useState('Chọn tài khoản demo hoặc nhập thông tin đăng nhập.');
+  const [message, setMessage] = useState('Đăng nhập để tiếp tục quản lý chuyến đi của bạn.');
   const [busy, setBusy] = useState(false);
   const [interactive, setInteractive] = useState(false);
-  const [tripActive, setTripActiveState] = useState(true);
-  const [tripStatus, setTripStatus] = useState<'SCHEDULED' | 'DEPARTED' | 'COMPLETED'>('SCHEDULED');
 
   useEffect(() => {
     setInteractive(true);
@@ -51,7 +41,7 @@ export function LoginForm() {
       const authenticated = await login(email, password);
       persist(authenticated);
       setSession(authenticated);
-      setMessage(`Đăng nhập thành công với role ${authenticated.user.role}.`);
+      setMessage(`Xin chào ${authenticated.user.displayName}.`);
     } catch (error) {
       setMessage(clientMessage(error));
     } finally {
@@ -66,7 +56,7 @@ export function LoginForm() {
       const rotated = await refreshSession(session.refreshToken);
       persist(rotated);
       setSession(rotated);
-      setMessage('Refresh token đã được rotate; token cũ không còn dùng được.');
+      setMessage('Phiên đăng nhập đã được gia hạn.');
     } catch (error) {
       setMessage(clientMessage(error));
     } finally {
@@ -81,50 +71,7 @@ export function LoginForm() {
       await logout(session.refreshToken);
       sessionStorage.removeItem(authStorageKey);
       setSession(null);
-      setMessage('Đã đăng xuất và thu hồi refresh session.');
-    } catch (error) {
-      setMessage(clientMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleTripActivation() {
-    if (!session) return;
-    setBusy(true);
-    try {
-      const result = await setTripActive(
-        session.accessToken,
-        '00000000-0000-4000-8000-000000000704',
-        !tripActive,
-      );
-      setTripActiveState(result.isActive);
-      setMessage(
-        result.changed
-          ? `Trip demo đã chuyển sang ${result.isActive ? 'ACTIVE' : 'INACTIVE'}.`
-          : 'Trip demo đã ở đúng trạng thái yêu cầu.',
-      );
-    } catch (error) {
-      setMessage(clientMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleTripLifecycle() {
-    if (!session || tripStatus === 'COMPLETED') return;
-    setBusy(true);
-    const targetStatus = tripStatus === 'SCHEDULED' ? 'DEPARTED' : 'COMPLETED';
-    try {
-      const result = await transitionTripStatus(
-        session.accessToken,
-        '00000000-0000-4000-8000-000000000704',
-        targetStatus,
-      );
-      setTripStatus(result.status);
-      setMessage(
-        `Trip demo đã chuyển ${result.previousStatus} → ${result.status}; Catalog đã ghi audit.`,
-      );
+      setMessage('Bạn đã đăng xuất an toàn.');
     } catch (error) {
       setMessage(clientMessage(error));
     } finally {
@@ -135,34 +82,30 @@ export function LoginForm() {
   return (
     <div className="auth-grid">
       <section className="auth-card" aria-labelledby="login-title">
-        <p className="eyebrow">Identity Service · M4.1</p>
-        <h1 id="login-title">Đăng nhập để hệ thống biết bạn được phép làm gì.</h1>
-        <div className="demo-account-list" aria-label="Tài khoản demo">
-          {demoAccounts.map((account) => (
-            <button
-              type="button"
-              key={account.email}
-              disabled={!interactive}
-              onClick={() => {
-                setEmail(account.email);
-                setPassword(account.password);
-              }}
-            >
-              {account.label}
-            </button>
-          ))}
-        </div>
+        <p className="eyebrow">Tài khoản Bến Việt</p>
+        <h1 id="login-title">Chào mừng bạn trở lại.</h1>
+        <p className="auth-intro">
+          Xem vé đã đặt, lưu thông tin hành khách và tiếp tục công việc vận hành của bạn.
+        </p>
         <form className="auth-form" onSubmit={handleLogin}>
           <label>
             Email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+            <input
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              required
+            />
           </label>
           <label>
             Mật khẩu
             <input
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
+              required
             />
           </label>
           <button className="auth-primary" disabled={busy || !interactive} type="submit">
@@ -172,64 +115,50 @@ export function LoginForm() {
       </section>
 
       <aside className="auth-session" aria-live="polite">
-        <span className="auth-stamp">AUTH / 01</span>
+        <span className="auth-stamp">BẾN VIỆT</span>
         {session ? (
           <>
-            <p className="eyebrow">Phiên đang hoạt động</p>
+            <p className="eyebrow">Đã đăng nhập</p>
             <h2>{session.user.displayName}</h2>
             <dl>
               <div>
-                <dt>Role</dt>
-                <dd>{session.user.role}</dd>
+                <dt>Quyền truy cập</dt>
+                <dd>{roleLabel(session.user.role)}</dd>
               </div>
               <div>
-                <dt>Access hết hạn</dt>
+                <dt>Phiên hết hạn lúc</dt>
                 <dd>{new Date(session.accessExpiresAt).toLocaleTimeString('vi-VN')}</dd>
               </div>
             </dl>
             <div className="auth-actions">
-              {session.user.role === 'CUSTOMER' && <a href="/account/bookings">Lịch sử đặt vé</a>}
-              {session.user.role === 'CUSTOMER' && <a href="/account/passengers">Hành khách</a>}
-              {(session.user.role === 'STAFF' || session.user.role === 'ADMIN') && (
-                <a href="/staff/check-in">Bàn check-in</a>
+              {session.user.role === 'CUSTOMER' && <a href="/account/bookings">Vé của tôi</a>}
+              {session.user.role === 'CUSTOMER' && (
+                <a href="/account/passengers">Hành khách đã lưu</a>
               )}
-              {session.user.role === 'ADMIN' && <a href="/admin/trips">Chuẩn bị chuyến</a>}
+              {(session.user.role === 'STAFF' || session.user.role === 'ADMIN') && (
+                <a href="/staff/check-in">Mở bàn check-in</a>
+              )}
+              {session.user.role === 'ADMIN' && <a href="/admin/operations">Trung tâm vận hành</a>}
               <button disabled={busy} onClick={handleRefresh} type="button">
-                Rotate token
+                Gia hạn phiên
               </button>
               <button disabled={busy} onClick={handleLogout} type="button">
                 Đăng xuất
               </button>
             </div>
-            <div className="admin-proof">
-              <strong>Kiểm chứng quyền tại Catalog</strong>
-              <p>Chỉ ADMIN mới đổi được trạng thái trip 704; Catalog kiểm tra role lần nữa.</p>
-              <button disabled={busy} onClick={handleTripActivation} type="button">
-                Chuyển trip sang {tripActive ? 'INACTIVE' : 'ACTIVE'}
-              </button>
-            </div>
-            <div className="admin-proof">
-              <strong>Vận hành vòng đời chuyến · M5</strong>
-              <p>
-                ADMIN chuyển trip 704 theo đúng thứ tự SCHEDULED → DEPARTED → COMPLETED; Catalog
-                kiểm tra lại role và ghi audit.
-              </p>
-              <button
-                disabled={busy || !interactive || tripStatus === 'COMPLETED'}
-                onClick={handleTripLifecycle}
-                type="button"
-              >
-                {tripStatus === 'COMPLETED'
-                  ? 'Trip đã COMPLETED'
-                  : `Chuyển trip sang ${tripStatus === 'SCHEDULED' ? 'DEPARTED' : 'COMPLETED'}`}
-              </button>
-            </div>
           </>
         ) : (
           <>
-            <p className="eyebrow">Chưa có phiên</p>
-            <h2>Guest vẫn tìm chuyến, giữ ghế và mua vé như trước.</h2>
-            <p>Đăng nhập chỉ bổ sung actor cho các operation cần CUSTOMER, STAFF hoặc ADMIN.</p>
+            <p className="eyebrow">Một tài khoản, nhiều tiện ích</p>
+            <h2>Giữ mọi hành trình trong tầm tay.</h2>
+            <ul className="auth-benefits">
+              <li>Xem lại lịch sử và trạng thái vé.</li>
+              <li>Lưu hành khách thường đi cùng.</li>
+              <li>Hủy vé trực tuyến khi đủ điều kiện.</li>
+            </ul>
+            <a className="auth-guest-link" href="/#search">
+              Tiếp tục tìm chuyến không cần đăng nhập
+            </a>
           </>
         )}
         <p className="auth-message" role="status">
@@ -240,15 +169,21 @@ export function LoginForm() {
   );
 }
 
+function roleLabel(role: AuthSession['user']['role']): string {
+  if (role === 'ADMIN') return 'Quản trị viên';
+  if (role === 'STAFF') return 'Nhân viên vận hành';
+  return 'Khách hàng';
+}
+
 function persist(session: AuthSession): void {
   sessionStorage.setItem(authStorageKey, JSON.stringify(session));
 }
 
 function clientMessage(error: unknown): string {
   if (error instanceof AuthClientError) {
-    if (error.code === 'UNAUTHENTICATED') return 'Email, mật khẩu hoặc token không hợp lệ.';
-    if (error.code === 'FORBIDDEN') return 'Role hiện tại không được phép thực hiện thao tác này.';
+    if (error.code === 'UNAUTHENTICATED') return 'Email hoặc mật khẩu không chính xác.';
+    if (error.code === 'FORBIDDEN') return 'Tài khoản này không có quyền thực hiện thao tác.';
     return error.message;
   }
-  return 'Không thể hoàn tất thao tác xác thực.';
+  return 'Không thể hoàn tất đăng nhập. Vui lòng thử lại.';
 }

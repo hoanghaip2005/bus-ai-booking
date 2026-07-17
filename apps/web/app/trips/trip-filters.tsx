@@ -52,9 +52,9 @@ export function TripFilters() {
         <label htmlFor="operator">Nhà xe</label>
         <select id="operator" name="operator" defaultValue={searchParams.get('operator') ?? ''}>
           <option value="">Tất cả nhà xe</option>
-          <option value="PT-DEMO">Phương Trang Demo</option>
-          <option value="TB-DEMO">Thành Bưởi Demo</option>
-          <option value="KH-DEMO">Kumho Demo</option>
+          <option value="PT-DEMO">Phương Trang</option>
+          <option value="TB-DEMO">Thành Bưởi</option>
+          <option value="KH-DEMO">Kumho</option>
         </select>
       </div>
       <div>

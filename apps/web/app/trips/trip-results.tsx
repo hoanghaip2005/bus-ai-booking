@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { SiteHeader } from '../components/site-header';
 import { TripFilters } from './trip-filters';
 import { TripCard, type TripSummary } from './trip-card';
 
@@ -104,27 +105,16 @@ export function TripResults() {
 
   return (
     <main className="results-page">
-      <header className="results-header">
-        <Link className="brand" href="/" aria-label="Bến Việt - về trang tìm chuyến">
-          <span className="brand-mark" aria-hidden="true">
-            BV
-          </span>
-          <span>
-            <strong>Bến Việt</strong>
-            <small>Đi xa, nhẹ đầu.</small>
-          </span>
-        </Link>
-        <Link className="back-link" href="/#search">
-          Đổi tìm kiếm
-        </Link>
-      </header>
+      <SiteHeader />
 
       <section className="results-intro" aria-labelledby="results-title">
         <p className="eyebrow">Lịch chạy ngày {formatLocalDate(travelDate)}</p>
         <h1 id="results-title">
           {originName} <span aria-hidden="true">→</span> {destinationName}
         </h1>
-        <p>Giờ hiển thị theo múi giờ Việt Nam · Giá đã tính theo từng hành khách.</p>
+        <p>
+          Giờ địa phương · Giá vé cho một hành khách · Chọn chuyến để xem điểm đón và ghế trống.
+        </p>
         {hasCityRoute && originCode && destinationCode && travelDate ? (
           <Link
             className="route-seo-link"

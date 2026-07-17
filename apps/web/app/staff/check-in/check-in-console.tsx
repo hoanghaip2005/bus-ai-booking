@@ -32,7 +32,7 @@ export function CheckInConsole() {
   const [credential, setCredential] = useState('');
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [busyTicketId, setBusyTicketId] = useState<string | null>(null);
-  const [message, setMessage] = useState('Đăng nhập bằng tài khoản STAFF hoặc ADMIN để bắt đầu.');
+  const [message, setMessage] = useState('Đăng nhập bằng tài khoản nhân viên để bắt đầu.');
 
   useEffect(() => {
     setInteractive(true);
@@ -42,7 +42,7 @@ export function CheckInConsole() {
       const stored = JSON.parse(raw) as StoredSession;
       if (stored.user.role === 'STAFF' || stored.user.role === 'ADMIN') {
         setSession(stored);
-        setMessage(`Đang vận hành với quyền ${stored.user.role}.`);
+        setMessage(`Xin chào ${stored.user.displayName}.`);
       }
     } catch {
       sessionStorage.removeItem(authStorageKey);
@@ -53,7 +53,7 @@ export function CheckInConsole() {
     event.preventDefault();
     if (!session) return;
     setBusyTicketId('lookup');
-    setMessage('Đang tra cứu dữ liệu vé authoritative từ Booking Service…');
+    setMessage('Đang tra cứu thông tin vé…');
     try {
       const result = await staffGraphql<StaffTicket[]>(
         `query StaffTicketLookup($input: StaffTicketLookupInput!) {
@@ -124,15 +124,15 @@ export function CheckInConsole() {
     <section className="operations-shell" aria-labelledby="check-in-title">
       <div className="operations-heading">
         <div>
-          <p className="eyebrow">Milestone 5 · Boarding control</p>
-          <h1 id="check-in-title">Một vé. Một hành khách. Một lần lên xe.</h1>
+          <p className="eyebrow">Check-in hành khách</p>
+          <h1 id="check-in-title">Xác nhận lên xe nhanh và chính xác.</h1>
         </div>
-        <span>{session ? session.user.displayName : 'Chưa xác thực'}</span>
+        <span>{session ? session.user.displayName : 'Chưa đăng nhập'}</span>
       </div>
 
       <div className="operations-grid">
         <form className="ticket-lookup" onSubmit={handleLookup}>
-          <span className="operations-index">OPS / 02</span>
+          <span className="operations-index">TRA CỨU</span>
           <h2>Tra cứu vé</h2>
           <label>
             Loại mã
@@ -140,9 +140,9 @@ export function CheckInConsole() {
               value={kind}
               onChange={(event) => setKind(event.target.value as CredentialKind)}
             >
-              <option value="BOOKING_CODE">Mã booking</option>
+              <option value="BOOKING_CODE">Mã đặt vé</option>
               <option value="TICKET_CODE">Mã vé</option>
-              <option value="QR_PAYLOAD">QR mô phỏng</option>
+              <option value="QR_PAYLOAD">Mã QR</option>
             </select>
           </label>
           <label>
@@ -151,14 +151,14 @@ export function CheckInConsole() {
               autoComplete="off"
               value={credential}
               onChange={(event) => setCredential(event.target.value)}
-              placeholder={kind === 'BOOKING_CODE' ? 'BV-2030-…' : 'VT-… hoặc QR payload'}
+              placeholder={kind === 'BOOKING_CODE' ? 'BV-2030-…' : 'VT-… hoặc nội dung QR'}
             />
           </label>
           <button
             type="submit"
             disabled={!interactive || !session || !credential.trim() || busyTicketId !== null}
           >
-            {busyTicketId === 'lookup' ? 'Đang tra cứu…' : 'Tra cứu authoritative'}
+            {busyTicketId === 'lookup' ? 'Đang tra cứu…' : 'Tra cứu vé'}
           </button>
           {!session && <a href="/login">Đăng nhập tài khoản vận hành</a>}
         </form>
@@ -174,7 +174,7 @@ export function CheckInConsole() {
                 <h2>{ticket.passengerName}</h2>
                 <p>{ticket.routeLabel}</p>
                 <small>
-                  Booking {ticket.bookingCode} · Khởi hành{' '}
+                  Mã đặt vé {ticket.bookingCode} · Khởi hành{' '}
                   {new Intl.DateTimeFormat('vi-VN', {
                     dateStyle: 'short',
                     timeStyle: 'short',
@@ -185,7 +185,9 @@ export function CheckInConsole() {
               <div className="ticket-seat">
                 <small>Ghế</small>
                 <strong>{ticket.seatId}</strong>
-                <span>{ticket.checkedInAt ? 'ĐÃ LÊN XE' : ticket.bookingStatus}</span>
+                <span>
+                  {ticket.checkedInAt ? 'ĐÃ LÊN XE' : bookingStatusLabel(ticket.bookingStatus)}
+                </span>
               </div>
               <button
                 type="button"
@@ -233,9 +235,17 @@ async function staffGraphql<T>(
 
 function operationMessage(error: unknown): string {
   if (!(error instanceof Error)) return 'Không thể hoàn tất thao tác vận hành.';
-  if (error.name === 'FORBIDDEN') return 'Tài khoản hiện tại không có quyền STAFF hoặc ADMIN.';
+  if (error.name === 'FORBIDDEN') return 'Tài khoản hiện tại không có quyền check-in.';
   if (error.name === 'WRONG_TRIP') return 'Vé không thuộc chuyến xe đang check-in.';
   if (error.name === 'INVALID_STATE_TRANSITION')
-    return 'Trạng thái booking không cho phép check-in.';
+    return 'Trạng thái đặt vé hiện tại không cho phép check-in.';
   return error.message;
+}
+
+function bookingStatusLabel(status: string): string {
+  if (status === 'TICKET_ISSUED') return 'ĐÃ CÓ VÉ';
+  if (status === 'CHECKED_IN') return 'ĐÃ LÊN XE';
+  if (status === 'PAID') return 'ĐÃ THANH TOÁN';
+  if (status === 'CANCELLED') return 'ĐÃ HỦY';
+  return status;
 }

@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import './globals.css';
+import './production.css';
+
+import { BeVietnamPro } from './lib/fonts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:8080'),
@@ -15,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="vi" data-scroll-behavior="smooth">
-      <body>{children}</body>
+      <body className={BeVietnamPro.variable}>{children}</body>
     </html>
   );
 }

@@ -21,7 +21,7 @@ export function PassengerProfileManager() {
   useEffect(() => {
     const session = getStoredAuthSession();
     if (session?.user.role !== 'CUSTOMER') {
-      setMessage('Đăng nhập tài khoản CUSTOMER để quản lý hành khách thường dùng.');
+      setMessage('Vui lòng đăng nhập để quản lý hành khách thường dùng.');
       return;
     }
     void reload();
@@ -79,7 +79,7 @@ export function PassengerProfileManager() {
     <section className="profile-manager" aria-live="polite">
       <header className="profile-manager-heading">
         <div>
-          <p className="eyebrow">Identity-owned · M4.3</p>
+          <p className="eyebrow">Hành khách thường dùng</p>
           <h1>Điền một lần. Đi nhiều chuyến.</h1>
         </div>
         <span>{profiles.length}/20 hồ sơ</span>
@@ -91,7 +91,7 @@ export function PassengerProfileManager() {
           onSubmit={(event) => void submit(event)}
           key={editing?.id ?? 'new'}
         >
-          <span className="profile-editor-index">PROFILE / {editing ? 'EDIT' : 'NEW'}</span>
+          <span className="profile-editor-index">{editing ? 'CHỈNH SỬA' : 'THÊM MỚI'}</span>
           <h2>{editing ? 'Chỉnh sửa hành khách' : 'Thêm hành khách thường dùng'}</h2>
           <label>
             Nhãn dễ nhớ
@@ -134,10 +134,7 @@ export function PassengerProfileManager() {
               {busy ? 'Đang lưu…' : editing ? 'Cập nhật' : 'Lưu hành khách'}
             </button>
           </div>
-          <p>
-            Không lưu số giấy tờ tùy thân trong profile. Booking vẫn tạo snapshot riêng cho từng
-            chuyến.
-          </p>
+          <p>Số giấy tờ không được lưu trong hồ sơ này. Bạn có thể bổ sung khi đặt từng chuyến.</p>
         </form>
 
         <div className="profile-stack">
@@ -169,7 +166,8 @@ export function PassengerProfileManager() {
 function clientMessage(error: unknown): string {
   if (error instanceof PassengerProfileClientError) {
     if (error.code === 'UNAUTHENTICATED') return 'Phiên đăng nhập đã hết hạn.';
-    if (error.code === 'FORBIDDEN') return 'Chỉ CUSTOMER được quản lý hành khách thường dùng.';
+    if (error.code === 'FORBIDDEN')
+      return 'Tài khoản này không thể quản lý hành khách thường dùng.';
     if (error.code === 'NOT_FOUND') return 'Hành khách này không còn tồn tại.';
     return error.message;
   }

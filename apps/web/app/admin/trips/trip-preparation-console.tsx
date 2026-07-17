@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { authStorageKey } from '../../lib/auth-session';
+import { displayOperatorName } from '../../lib/display';
 
 interface Session {
   accessToken: string;
@@ -45,7 +46,7 @@ export function TripPreparationConsole() {
   const [seatIds, setSeatIds] = useState('A03');
   const [blockReason, setBlockReason] = useState('Bảo trì ghế');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('Đăng nhập ADMIN để tải dữ liệu Catalog.');
+  const [message, setMessage] = useState('Đăng nhập bằng tài khoản quản trị để tiếp tục.');
   const vehicle = useMemo(
     () => options.vehicles.find((item) => item.id === vehicleId),
     [options.vehicles, vehicleId],
@@ -69,7 +70,7 @@ export function TripPreparationConsole() {
           setOptions(result);
           setRouteId(result.routes[0]?.id ?? '');
           setVehicleId(result.vehicles[0]?.id ?? '');
-          setMessage('Dữ liệu tuyến, xe và sơ đồ ghế được đọc trực tiếp từ Catalog.');
+          setMessage('Đã tải danh sách tuyến, xe và sơ đồ ghế.');
         })
         .catch((error: unknown) => setMessage(errorMessage(error)))
         .finally(() => setBusy(false));
@@ -100,9 +101,7 @@ export function TripPreparationConsole() {
         session.accessToken,
       );
       setBusy(false);
-      setMessage(
-        `${result.created ? 'Đã tạo' : 'Đã tìm lại'} chuyến ${result.tripId}; trip và fare đã commit cùng transaction.`,
-      );
+      setMessage(`${result.created ? 'Đã tạo' : 'Chuyến đã tồn tại'}: ${result.tripId}.`);
       setSeatTripId(result.tripId);
     } catch (error) {
       setBusy(false);
@@ -134,7 +133,7 @@ export function TripPreparationConsole() {
       );
       setBusy(false);
       setMessage(
-        `${result.changed ? 'Đã cập nhật' : 'Không thay đổi'} ${result.seatIds.join(', ')} sang ${result.blocked ? 'BLOCKED' : 'AVAILABLE'}.`,
+        `${result.changed ? 'Đã cập nhật' : 'Không thay đổi'} ${result.seatIds.join(', ')} sang ${result.blocked ? 'Tạm khóa' : 'Còn bán'}.`,
       );
     } catch (error) {
       setBusy(false);
@@ -146,17 +145,15 @@ export function TripPreparationConsole() {
     <section className="operations-shell" aria-labelledby="trip-preparation-title">
       <div className="operations-heading">
         <div>
-          <p className="eyebrow">Milestone 5 · Trip preparation</p>
-          <h1 id="trip-preparation-title">
-            Chuẩn bị một chuyến hoàn chỉnh từ dữ liệu đã kiểm duyệt.
-          </h1>
+          <p className="eyebrow">Điều phối lịch chạy</p>
+          <h1 id="trip-preparation-title">Tạo chuyến mới và quản lý ghế tạm khóa.</h1>
         </div>
-        <span>{session?.user.displayName ?? 'Chưa xác thực ADMIN'}</span>
+        <span>{session?.user.displayName ?? 'Chưa đăng nhập'}</span>
       </div>
       <div className="operations-grid">
         <form className="ticket-lookup" onSubmit={handleSubmit}>
-          <span className="operations-index">OPS / 03</span>
-          <h2>Tạo chuyến SCHEDULED</h2>
+          <span className="operations-index">LỊCH CHẠY</span>
+          <h2>Tạo chuyến mới</h2>
           <label>
             Tuyến
             <select value={routeId} onChange={(event) => setRouteId(event.target.value)}>
@@ -172,7 +169,7 @@ export function TripPreparationConsole() {
             <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
               {options.vehicles.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.operatorName} · {item.code} · {item.plate}
+                  {displayOperatorName(item.operatorName)} · {item.code} · {item.plate}
                 </option>
               ))}
             </select>
@@ -207,19 +204,19 @@ export function TripPreparationConsole() {
             />
           </label>
           <button disabled={busy || !session || !routeId || !vehicle || !priceVnd} type="submit">
-            {busy ? 'Đang xử lý…' : 'Tạo chuyến và fare'}
+            {busy ? 'Đang xử lý…' : 'Tạo chuyến'}
           </button>
-          {!session && <a href="/login">Đăng nhập tài khoản ADMIN</a>}
+          {!session && <a href="/login">Đăng nhập quản trị</a>}
         </form>
         <div className="ticket-results" aria-live="polite">
           <p className="operations-message" role="status">
             {message}
           </p>
           <div className="admin-seat-block">
-            <span className="operations-index">OPS / 04</span>
-            <h2>Khóa ghế vận hành</h2>
+            <span className="operations-index">KHO GHẾ</span>
+            <h2>Tạm khóa ghế</h2>
             <label>
-              Trip ID
+              Mã chuyến
               <input value={seatTripId} onChange={(event) => setSeatTripId(event.target.value)} />
             </label>
             <label>
