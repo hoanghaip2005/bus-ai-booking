@@ -87,7 +87,7 @@ jobs:
         env:
           OTEL_SDK_DISABLED: 'false'
         run: |
-          pnpm dev > app.log 2>&1 &
+          pnpm exec turbo dev --concurrency=16 --ui=stream > app.log 2>&1 &
           app_pid=$!
           trap 'kill $app_pid || true' EXIT
           node scripts/wait-for-apps.mjs
