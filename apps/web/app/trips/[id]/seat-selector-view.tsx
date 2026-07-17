@@ -90,7 +90,7 @@ export function SeatSelectorView({
           {busy
             ? 'Đang xử lý…'
             : bookingCreated
-              ? 'Booking đã tạo'
+              ? 'Đơn đặt vé đã tạo'
               : hold
                 ? 'Bỏ giữ ghế'
                 : 'Giữ ghế trong 5 phút'}

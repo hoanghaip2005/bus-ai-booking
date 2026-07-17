@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { SiteHeader } from '../../components/site-header';
 import { authStorageKey } from '../../lib/auth-session';
 
 type Session = { accessToken: string; user: { displayName: string; role: string } };
@@ -44,7 +45,7 @@ const snapshotQuery = `query AdminCatalog { adminCatalog {
 export default function AdminCatalogPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [message, setMessage] = useState('Đăng nhập ADMIN để quản lý Catalog.');
+  const [message, setMessage] = useState('Đăng nhập bằng tài khoản quản trị để tiếp tục.');
   const [busy, setBusy] = useState(false);
 
   async function reload(activeSession: Session) {
@@ -53,9 +54,9 @@ export default function AdminCatalogPage() {
       setCatalog(
         await graphql<Catalog>(snapshotQuery, {}, 'adminCatalog', activeSession.accessToken),
       );
-      setMessage('Catalog được đọc qua GraphQL và Catalog gRPC.');
+      setMessage('Dữ liệu danh mục đã được cập nhật.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Không thể tải Catalog.');
+      setMessage(error instanceof Error ? error.message : 'Không thể tải dữ liệu danh mục.');
     } finally {
       setBusy(false);
     }
@@ -89,32 +90,21 @@ export default function AdminCatalogPage() {
       );
       await reload(session);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Catalog mutation thất bại.');
+      setMessage(error instanceof Error ? error.message : 'Không thể lưu thay đổi.');
       setBusy(false);
     }
   }
 
   return (
-    <main>
-      <nav className="site-nav" aria-label="Điều hướng quản trị">
-        <a className="brand" href="/">
-          Bến Việt
-        </a>
-        <div>
-          <a href="/admin/trips">Chuyến</a>
-          <a href="/admin/operations">Vận hành</a>
-          <a className="nav-cta" href="/admin/catalog">
-            Catalog
-          </a>
-        </div>
-      </nav>
+    <main className="operations-page">
+      <SiteHeader variant="admin" />
       <section className="operations-shell">
         <div className="operations-heading">
           <div>
-            <p className="eyebrow">Milestone 5 · Catalog CRUD</p>
-            <h1>Quản lý dữ liệu nền mà không phá vỡ booking snapshot.</h1>
+            <p className="eyebrow">Danh mục vận hành</p>
+            <h1>Quản lý tuyến, xe và điểm đón.</h1>
           </div>
-          <span>{session?.user.displayName ?? 'Chưa xác thực ADMIN'}</span>
+          <span>{session?.user.displayName ?? 'Chưa đăng nhập'}</span>
         </div>
         <p className="operations-message" role="status">
           {busy ? 'Đang xử lý…' : message}
@@ -122,7 +112,7 @@ export default function AdminCatalogPage() {
         {catalog && session ? (
           <CatalogForms catalog={catalog} disabled={busy} mutate={mutate} />
         ) : (
-          <a href="/login">Đăng nhập ADMIN</a>
+          <a href="/login">Đăng nhập quản trị</a>
         )}
       </section>
     </main>
@@ -139,20 +129,20 @@ function CatalogForms({
   mutate: (field: string, query: string, input: Record<string, unknown>) => Promise<void>;
 }) {
   const cities = catalog.locations.filter((item) => item.kind === 'CITY');
-  const [locationName, setLocationName] = useState('Điểm demo mới');
-  const [locationCode, setLocationCode] = useState('DEMO-STOP');
-  const [routeCode, setRouteCode] = useState('DEMO-ROUTE');
+  const [locationName, setLocationName] = useState('Điểm đón mới');
+  const [locationCode, setLocationCode] = useState('BEN-MOI');
+  const [routeCode, setRouteCode] = useState('TUYEN-MOI');
   const [originId, setOriginId] = useState(cities[0]?.id ?? '');
   const [destinationId, setDestinationId] = useState(cities[1]?.id ?? '');
   const [layoutVersion, setLayoutVersion] = useState('99');
-  const [vehicleCode, setVehicleCode] = useState('DEMO-BUS');
-  const [plate, setPlate] = useState('00A-000.99');
+  const [vehicleCode, setVehicleCode] = useState('XE-MOI');
+  const [plate, setPlate] = useState('51B-000.00');
   const [tripId, setTripId] = useState(catalog.trips[0]?.id ?? '');
 
   return (
     <div className="operations-ledger-grid">
       <Form
-        title="Location / stop"
+        title="Điểm đón và bến xe"
         onSubmit={() =>
           mutate(
             'saveAdminLocation',
@@ -177,7 +167,7 @@ function CatalogForms({
         </label>
       </Form>
       <Form
-        title="Route + ordered stops"
+        title="Tuyến và thứ tự điểm dừng"
         onSubmit={() =>
           mutate(
             'saveAdminRoute',
@@ -209,7 +199,7 @@ function CatalogForms({
         <Select label="Điểm đến" value={destinationId} setValue={setDestinationId} items={cities} />
       </Form>
       <Form
-        title="Seat-layout version"
+        title="Sơ đồ ghế"
         onSubmit={() =>
           mutate(
             'saveAdminSeatLayout',
@@ -217,7 +207,7 @@ function CatalogForms({
             {
               vehicleTypeId: catalog.vehicleTypes[0]?.id,
               version: Number(layoutVersion),
-              name: `Demo layout v${layoutVersion}`,
+              name: `Sơ đồ ghế phiên bản ${layoutVersion}`,
               deckCount: 1,
               layoutJson: JSON.stringify({
                 seats: [{ id: 'A01', label: 'A01', deck: 1, row: 1, column: 1 }],
@@ -228,17 +218,17 @@ function CatalogForms({
         disabled={disabled}
       >
         <label>
-          Version
+          Phiên bản
           <input
             inputMode="numeric"
             value={layoutVersion}
             onChange={(event) => setLayoutVersion(event.target.value)}
           />
         </label>
-        <p>Layout mới được version hóa; bản cũ chỉ deactivate.</p>
+        <p>Tạo phiên bản mới khi cấu hình ghế thay đổi.</p>
       </Form>
       <Form
-        title="Vehicle"
+        title="Phương tiện"
         onSubmit={() =>
           mutate(
             'saveAdminVehicle',
@@ -264,7 +254,7 @@ function CatalogForms({
         </label>
       </Form>
       <Form
-        title="Trip + fare update"
+        title="Chuyến và giá vé"
         onSubmit={() => {
           const trip = catalog.trips.find((item) => item.id === tripId);
           const vehicle = catalog.vehicles.find((item) => item.id === trip?.vehicleId);
@@ -295,12 +285,12 @@ function CatalogForms({
             code: `${item.status} · ${item.id.slice(0, 8)}`,
           }))}
         />
-        <p>Cập nhật trip/fare chỉ áp dụng cho DRAFT hoặc SCHEDULED.</p>
+        <p>Chỉ có thể cập nhật chuyến chưa khởi hành.</p>
       </Form>
       <section className="operations-ledger">
         <div className="operations-section-heading">
-          <span>ARCHIVE</span>
-          <h2>Deactivate / reactivate</h2>
+          <span>TRẠNG THÁI</span>
+          <h2>Tạm ngừng hoặc mở lại</h2>
         </div>
         {[
           ...catalog.locations.slice(0, 4).map((item) => ({ ...item, resourceType: 'LOCATION' })),
@@ -322,7 +312,7 @@ function CatalogForms({
                 )
               }
             >
-              {item.isActive ? 'Deactivate' : 'Reactivate'}
+              {item.isActive ? 'Tạm ngừng' : 'Mở lại'}
             </button>
           </article>
         ))}
@@ -350,7 +340,7 @@ function Form({
         void onSubmit();
       }}
     >
-      <span className="operations-index">CRUD</span>
+      <span className="operations-index">DANH MỤC</span>
       <h2>{title}</h2>
       {children}
       <button disabled={disabled} type="submit">
@@ -401,6 +391,6 @@ async function graphql<T>(
     errors?: Array<{ message: string }>;
   };
   if (!response.ok || body.errors?.[0] || body.data?.[field] === undefined)
-    throw new Error(body.errors?.[0]?.message ?? 'Catalog request thất bại.');
+    throw new Error(body.errors?.[0]?.message ?? 'Không thể xử lý yêu cầu danh mục.');
   return body.data[field]!;
 }

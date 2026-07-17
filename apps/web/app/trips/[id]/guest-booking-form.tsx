@@ -173,11 +173,11 @@ export function GuestBookingForm({ hold, booking, onBookingUpdated }: GuestBooki
 
       <div className="booking-submit-row">
         <p>
-          Thông tin giấy tờ không được trả lại qua API. Booking hiện chỉ ở trạng thái chờ thanh
-          toán.
+          Bạn có thể bỏ qua số giấy tờ nếu không cần cung cấp. Sau khi tạo đơn, bạn sẽ được chuyển
+          sang bước thanh toán.
         </p>
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Đang tạo booking…' : 'Tạo booking'}
+          {submitting ? 'Đang tạo đơn…' : 'Tiếp tục thanh toán'}
         </button>
       </div>
       {error ? (
@@ -217,5 +217,5 @@ function messageForBookingError(error: unknown): string {
   if (error instanceof BookingClientError && error.code === 'IDEMPOTENCY_CONFLICT') {
     return 'Yêu cầu này khác với lần gửi trước. Vui lòng tải lại trang.';
   }
-  return error instanceof Error ? error.message : 'Không thể tạo booking lúc này.';
+  return error instanceof Error ? error.message : 'Không thể tạo đơn đặt vé lúc này.';
 }

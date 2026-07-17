@@ -3,6 +3,7 @@ import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 
 import { sanitizeUntrustedText } from './ai-protected-assistant';
+import { displayOperatorName } from './display';
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -268,7 +269,7 @@ export function formatGroundedAnswer(output: TripSearchToolOutput): string {
   const money = new Intl.NumberFormat('vi-VN');
   const lines = validated.trips.slice(0, 3).map((trip, index) => {
     const departure = formatter.format(new Date(trip.departureAt));
-    return `${index + 1}. ${sanitizeUntrustedText(trip.operatorName)}, ${departure}, ${money.format(trip.priceVnd)} VND, còn ${trip.remainingSeats} ghế — /trips/${trip.id}`;
+    return `${index + 1}. ${sanitizeUntrustedText(displayOperatorName(trip.operatorName))}, ${departure}, ${money.format(trip.priceVnd)} VND, còn ${trip.remainingSeats} ghế — /trips/${trip.id}`;
   });
   return `Tìm thấy ${validated.trips.length} chuyến ${sanitizeUntrustedText(validated.origin.name)} đi ${sanitizeUntrustedText(validated.destination.name)} ngày ${validated.travelDate}:\n${lines.join('\n')}`;
 }

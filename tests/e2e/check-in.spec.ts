@@ -19,7 +19,7 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
     await page.getByLabel('Email nhận vé').fill('checkin.e2e@example.com');
     await page.getByLabel('Số điện thoại liên hệ').fill('0901234567');
     await page.getByLabel('Họ tên hành khách ghế A08').fill('Check-in E2E Guest');
-    await page.getByRole('button', { name: 'Tạo booking' }).click();
+    await page.getByRole('button', { name: 'Tiếp tục thanh toán' }).click();
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();
     await expect(page.getByText(/vé điện tử sẵn sàng/)).toBeVisible({ timeout: 20_000 });
 
@@ -52,9 +52,10 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
     expect(ticketCode).toMatch(/^VT-/);
 
     await page.goto('/login');
-    await page.getByRole('button', { name: 'Nhân viên' }).click();
+    await page.getByLabel('Email').fill('staff.demo@benviet.vn');
+    await page.getByLabel('Mật khẩu').fill('Staff123!');
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await expect(page.getByText('Nhân viên Demo')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nhân viên Demo' })).toBeVisible();
     const accessToken = await page.evaluate(() => {
       const raw = sessionStorage.getItem('bus:auth-session:v1');
       return raw ? (JSON.parse(raw) as { accessToken?: string }).accessToken : undefined;
@@ -78,7 +79,7 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
     await page.goto('/staff/check-in');
     await page.getByLabel('Loại mã').selectOption('TICKET_CODE');
     await page.getByLabel('Mã cần tra cứu').fill(ticketCode!);
-    await page.getByRole('button', { name: 'Tra cứu authoritative' }).click();
+    await page.getByRole('button', { name: 'Tra cứu vé' }).click();
     await expect(page.getByText('Check-in E2E Guest', { exact: true })).toBeVisible();
     await expect(page.getByText('A08', { exact: true })).toBeVisible();
 

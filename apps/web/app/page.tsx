@@ -1,48 +1,34 @@
 import { TripSearchForm } from './components/trip-search-form';
 import { AiTripChat } from './components/ai-trip-chat';
+import { SiteFooter } from './components/site-footer';
+import { SiteHeader } from './components/site-header';
 
-const foundationItems = [
-  ['GraphQL Gateway', 'Public API cho web và subscription'],
-  ['gRPC Catalog', 'Contract đồng bộ giữa gateway và service'],
-  ['MCP Server', 'Cửa ngõ tool cho AI client bên ngoài'],
-  ['Event backbone', 'RabbitMQ workflow · Kafka analytics'],
+const travelNotes = [
+  ['Giữ ghế 5 phút', 'Bạn có đủ thời gian nhập thông tin và hoàn tất thanh toán.'],
+  ['Vé gửi ngay', 'Vé điện tử có mã QR được gửi sau khi thanh toán thành công.'],
+  ['Hỗ trợ tận tâm', 'Cần đổi lịch hay tra cứu vé? Đội ngũ luôn sẵn sàng hỗ trợ.'],
 ] as const;
+
+const popularRoutes = ['TP.HCM → Đà Lạt', 'Đà Lạt → TP.HCM', 'TP.HCM → Nha Trang'];
 
 export default function HomePage() {
   return (
-    <main>
-      <header className="topbar">
-        <a className="brand" href="#top" aria-label="Bến Việt - về đầu trang">
-          <span className="brand-mark" aria-hidden="true">
-            BV
-          </span>
-          <span>
-            <strong>Bến Việt</strong>
-            <small>Đi xa, nhẹ đầu.</small>
-          </span>
-        </a>
-        <nav aria-label="Điều hướng chính">
-          <a href="#search">Tìm chuyến</a>
-          <a href="#foundation">Hệ thống</a>
-          <a href="/login">Đăng nhập</a>
-          <a className="nav-cta" href="http://localhost:4000/graphql">
-            GraphQL
-          </a>
-        </nav>
-      </header>
+    <main className="home-page">
+      <SiteHeader />
 
       <section className="hero" id="top">
-        <div className="route-line" aria-hidden="true">
-          <span />
-          <i />
-          <span />
+        <div className="hero-orbit" aria-hidden="true">
+          <span className="hero-orbit-line" />
+          <span className="hero-orbit-dot hero-orbit-dot-start" />
+          <span className="hero-orbit-dot hero-orbit-dot-end" />
+          <span className="hero-orbit-label">BV / 01</span>
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">Nền tảng vé xe liên tỉnh thế hệ mới</p>
-          <h1>Một hành trình rõ ràng, từ lúc tìm xe đến khi lên chuyến.</h1>
+          <p className="eyebrow">Đi đâu cũng có cách nhẹ nhàng hơn</p>
+          <h1>Đặt chuyến đi tiếp theo trong vài phút.</h1>
           <p className="lede">
-            Tìm chuyến theo cách tự nhiên, giữ ghế an toàn và nhận vé điện tử trong một luồng duy
-            nhất.
+            Tìm chuyến, chọn đúng chỗ ngồi và nhận vé điện tử — tất cả trong một trải nghiệm rõ
+            ràng, không bước thừa.
           </p>
         </div>
 
@@ -51,33 +37,46 @@ export default function HomePage() {
 
       <AiTripChat />
 
-      <section className="foundation" id="foundation" aria-labelledby="foundation-title">
+      <section className="travel-notes" id="travel-notes" aria-labelledby="travel-notes-title">
         <div className="section-heading">
-          <p className="eyebrow">Milestone 0.1</p>
-          <h2 id="foundation-title">Nền móng đang hoạt động</h2>
-          <p>
-            Monorepo được tổ chức theo contract-first. Mỗi đường giao tiếp có một vai trò rõ ràng,
-            không chia sẻ database ngầm.
-          </p>
+          <p className="eyebrow">Đi cùng sự an tâm</p>
+          <h2 id="travel-notes-title">Mọi thứ bạn cần cho một chuyến đi êm.</h2>
+          <p>Thông tin rõ ràng từ lúc tìm xe đến lúc bước xuống bến.</p>
         </div>
-        <ol className="foundation-list">
-          {foundationItems.map(([title, description], index) => (
-            <li key={title}>
+        <div className="travel-notes-grid">
+          {travelNotes.map(([title, description], index) => (
+            <article key={title} className="travel-note-card">
               <span className="item-number">0{index + 1}</span>
-              <div>
-                <h3>{title}</h3>
-                <p>{description}</p>
-              </div>
-              <span className="status-pill">READY</span>
-            </li>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </article>
           ))}
-        </ol>
+        </div>
       </section>
 
-      <footer>
-        <span>Bến Việt · Intercity Bus Booking Platform</span>
-        <a href="http://localhost:8080/health">Kiểm tra hệ thống</a>
-      </footer>
+      <section className="route-highlights" id="policies" aria-labelledby="route-highlights-title">
+        <div>
+          <p className="eyebrow">Tuyến được yêu thích</p>
+          <h2 id="route-highlights-title">Chọn một nơi để bắt đầu.</h2>
+        </div>
+        <div className="route-chip-list">
+          {popularRoutes.map((route) => (
+            <span className="route-chip" key={route}>
+              {route}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="support-strip" id="support" aria-label="Hỗ trợ đặt vé">
+        <strong>Cần một gợi ý?</strong>
+        <span>Hãy hỏi trợ lý Bến Việt hoặc bắt đầu bằng điểm đi và điểm đến của bạn.</span>
+        <a href="#search">
+          Tìm chuyến ngay <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+
+      <SiteFooter />
     </main>
   );
 }

@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { SiteHeader } from '../../components/site-header';
 import { CatalogApiError, getSeatMap, getTripDetail, type TripDetail } from '../../lib/catalog-api';
+import { displayOperatorName } from '../../lib/display';
 import { SeatSelector } from './seat-selector';
 
 interface TripDetailPageProps {
@@ -16,7 +18,7 @@ export async function generateMetadata({ params }: TripDetailPageProps): Promise
     const trip = await getTripDetail(id);
     return {
       title: `${trip.originName} đi ${trip.destinationName} · ${formatDateTime(trip.departureAt)}`,
-      description: `${trip.operatorName}, ${trip.vehicleTypeName}, khởi hành ${formatDateTime(trip.departureAt)}, giá ${formatMoney(trip.priceVnd)}.`,
+      description: `${displayOperatorName(trip.operatorName)}, ${trip.vehicleTypeName}, khởi hành ${formatDateTime(trip.departureAt)}, giá ${formatMoney(trip.priceVnd)}.`,
     };
   } catch {
     return { title: 'Chuyến xe không tồn tại', robots: { index: false, follow: false } };
@@ -31,17 +33,18 @@ export default async function TripDetailPage({ params }: TripDetailPageProps) {
     const [trip, seatMap] = await Promise.all([getTripDetail(id), getSeatMap(id)]);
     return (
       <main className="trip-detail-page">
-        <header className="results-header trip-detail-header">
-          <Brand />
+        <SiteHeader />
+        <div className="page-toolbar trip-detail-header">
           <Link className="back-link" href="/#search">
-            Tìm chuyến khác
+            ← Tìm chuyến khác
           </Link>
-        </header>
+          <span>Chi tiết chuyến xe</span>
+        </div>
 
         <section className="trip-detail-hero" aria-labelledby="trip-detail-title">
           <div>
             <p className="eyebrow">
-              {trip.operatorName} · {trip.status}
+              {displayOperatorName(trip.operatorName)} · {tripStatusLabel(trip.status)}
             </p>
             <h1 id="trip-detail-title">
               {trip.originName} <span aria-hidden="true">→</span> {trip.destinationName}
@@ -62,7 +65,7 @@ export default async function TripDetailPage({ params }: TripDetailPageProps) {
           <Fact label="Khởi hành" value={formatDateTime(trip.departureAt)} />
           <Fact label="Dự kiến đến" value={formatDateTime(trip.arrivalAt)} />
           <Fact label="Thời gian chạy" value={formatDuration(trip.durationMinutes)} />
-          <Fact label="Múi giờ" value="Asia/Ho_Chi_Minh" />
+          <Fact label="Giờ hiển thị" value="Giờ Việt Nam" />
         </section>
 
         <div className="trip-detail-grid">
@@ -88,8 +91,7 @@ export default async function TripDetailPage({ params }: TripDetailPageProps) {
             <p className="eyebrow">Chọn chỗ</p>
             <h2 id="seat-preview-title">{seatMap.layoutName}</h2>
             <p className="panel-note">
-              Bản sơ đồ v{seatMap.layoutVersion}. Mỗi lần giữ tối đa 10 ghế trong 5 phút; tải lại
-              trang vẫn khôi phục hold của checkout session này.
+              Chọn tối đa 10 ghế. Ghế được giữ trong 5 phút để bạn hoàn tất thông tin đặt vé.
             </p>
             <SeatSelector tripId={trip.id} initialSeatMap={seatMap} unitPriceVnd={trip.priceVnd} />
           </section>
@@ -104,7 +106,6 @@ export default async function TripDetailPage({ params }: TripDetailPageProps) {
                 <span>{policy.code}</span>
                 <h3>{policy.title}</h3>
                 <p>{policy.summary}</p>
-                <small>{policy.resourceUri}</small>
               </article>
             ))}
           </div>
@@ -123,20 +124,6 @@ function Fact({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  );
-}
-
-function Brand() {
-  return (
-    <Link className="brand" href="/" aria-label="Bến Việt - về trang tìm chuyến">
-      <span className="brand-mark" aria-hidden="true">
-        BV
-      </span>
-      <span>
-        <strong>Bến Việt</strong>
-        <small>Đi xa, nhẹ đầu.</small>
-      </span>
-    </Link>
   );
 }
 
@@ -179,6 +166,11 @@ function stopLabel(kind: TripDetail['stops'][number]['kind']): string {
   if (kind === 'PICKUP') return 'Điểm đón';
   if (kind === 'DROPOFF') return 'Điểm trả';
   return 'Điểm đón/trả';
+}
+function tripStatusLabel(status: string): string {
+  if (status === 'SCHEDULED') return 'Sắp khởi hành';
+  if (status === 'BOARDING') return 'Đang đón khách';
+  return status;
 }
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);

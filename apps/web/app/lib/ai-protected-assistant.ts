@@ -54,7 +54,7 @@ const policies = {
     effectiveDate: '2026-07-15',
     resourceUri: 'bus://policy/cancellation' as const,
     content:
-      'Booking ở trạng thái PAID hoặc TICKET_ISSUED được hủy khi thời điểm yêu cầu còn trước giờ khởi hành. Hệ thống demo giải phóng ghế nhưng không thực hiện hoàn tiền thật.',
+      'Đơn ở trạng thái đã thanh toán hoặc đã phát hành vé được hủy khi thời điểm yêu cầu còn trước giờ khởi hành. Hệ thống giải phóng ghế; hoàn tiền chưa được hỗ trợ.',
   },
   checkin: {
     title: 'Hướng dẫn check-in nội bộ',

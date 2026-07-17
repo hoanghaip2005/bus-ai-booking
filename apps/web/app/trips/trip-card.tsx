@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { displayOperatorName } from '../lib/display';
+
 export interface TripSummary {
   id: string;
   operatorName: string;
@@ -20,7 +22,7 @@ export function TripCard({ trip }: { trip: TripSummary }) {
   return (
     <li className="trip-card">
       <div className="trip-operator">
-        <p>{trip.operatorName}</p>
+        <p>{displayOperatorName(trip.operatorName)}</p>
         <span>{trip.vehicleTypeName}</span>
         <small>Mã xe {trip.vehicleCode}</small>
       </div>
