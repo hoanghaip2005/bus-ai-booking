@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  async redirects() {
+    return [
+      { source: '/account', destination: '/account/bookings', permanent: false },
+      { source: '/staff', destination: '/staff/check-in', permanent: false },
+      { source: '/admin', destination: '/admin/operations', permanent: false },
+    ];
+  },
   async rewrites() {
     return [
       {

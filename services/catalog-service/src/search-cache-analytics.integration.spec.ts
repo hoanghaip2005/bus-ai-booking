@@ -5,7 +5,10 @@ import { Kafka, logLevel } from 'kafkajs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { CatalogService } from './catalog.service';
-import { SearchAnalyticsPublisher } from './search-analytics.publisher';
+import { SearchAnalyticsPublisher, SearchKafkaOutboxPublisher } from './search-analytics.publisher';
+import { SearchOutboxRelay } from './search-outbox.relay';
+import { SearchOutboxRepository } from './search-outbox.repository';
+import { CatalogDatabase } from './catalog.database';
 import type { TripSummaryRecord } from './trip.repository';
 import { TripSearchCache } from './trip-search-cache';
 
@@ -29,7 +32,10 @@ afterAll(async () => admin.disconnect());
 describe('trip search Redis cache and Kafka analytics', () => {
   it('uses Redis on a repeated request and publishes a fact for miss and hit', async () => {
     const cache = createIsolatedCache();
-    const publisher = new SearchAnalyticsPublisher();
+    const database = new CatalogDatabase();
+    const repository = new SearchOutboxRepository(database);
+    const publisher = new SearchAnalyticsPublisher(repository);
+    const relay = new SearchOutboxRelay(repository, new SearchKafkaOutboxPublisher());
     const search = vi.fn(async () => [trip]);
     const service = createService(cache, publisher, search);
     const searchSessionId = randomUUID();
@@ -62,9 +68,11 @@ describe('trip search Redis cache and Kafka analytics', () => {
       await expect(
         service.searchTrips(searchRequest(searchSessionId, ['TB-DEMO', 'KUMHO-DEMO'])),
       ).resolves.toMatchObject({ trips: [trip] });
+      await relay.drainOnce();
       await expect(
         service.searchTrips(searchRequest(searchSessionId, ['KUMHO-DEMO', 'TB-DEMO'])),
       ).resolves.toMatchObject({ trips: [trip] });
+      await relay.drainOnce();
 
       await waitFor(() => events.length === 2);
       expect(search).toHaveBeenCalledOnce();
@@ -74,11 +82,19 @@ describe('trip search Redis cache and Kafka analytics', () => {
       expect(events.every((event) => event.payload.matchedRoutes.length === 1)).toBe(true);
       expect(events.every((event) => event.traceId.length > 0)).toBe(true);
     } finally {
-      await publisher.onModuleDestroy();
+      const eventIds = events.map((event) => event.eventId);
+      if (eventIds.length > 0) {
+        await database.query(
+          'DELETE FROM catalog.search_outbox_events WHERE event_id = ANY($1::uuid[])',
+          [eventIds],
+        );
+      }
+      await relay.onModuleDestroy();
       await cache.invalidate();
       await cache.onModuleDestroy();
       await consumer.stop();
       await consumer.disconnect();
+      await database.onModuleDestroy();
     }
   });
 

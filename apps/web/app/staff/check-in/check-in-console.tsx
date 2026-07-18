@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from 'react';
 
-import { authStorageKey } from '../../lib/auth-session';
+import { getStoredAuthSession, type StoredAuthSession } from '../../lib/auth-session';
 
 type CredentialKind = 'BOOKING_CODE' | 'TICKET_CODE' | 'QR_PAYLOAD';
-
-interface StoredSession {
-  accessToken: string;
-  user: { displayName: string; role: 'CUSTOMER' | 'STAFF' | 'ADMIN' };
-}
 
 interface StaffTicket {
   ticketId: string;
@@ -26,8 +21,8 @@ interface StaffTicket {
 }
 
 export function CheckInConsole() {
-  const [session, setSession] = useState<StoredSession | null>(null);
-  const [interactive, setInteractive] = useState(false);
+  const [session, setSession] = useState<StoredAuthSession | null>(null);
+  const [sessionResolved, setSessionResolved] = useState(false);
   const [kind, setKind] = useState<CredentialKind>('BOOKING_CODE');
   const [credential, setCredential] = useState('');
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
@@ -35,18 +30,12 @@ export function CheckInConsole() {
   const [message, setMessage] = useState('Đăng nhập bằng tài khoản nhân viên để bắt đầu.');
 
   useEffect(() => {
-    setInteractive(true);
-    const raw = sessionStorage.getItem(authStorageKey);
-    if (!raw) return;
-    try {
-      const stored = JSON.parse(raw) as StoredSession;
-      if (stored.user.role === 'STAFF' || stored.user.role === 'ADMIN') {
-        setSession(stored);
-        setMessage(`Xin chào ${stored.user.displayName}.`);
-      }
-    } catch {
-      sessionStorage.removeItem(authStorageKey);
+    const stored = getStoredAuthSession();
+    if (stored?.user.role === 'STAFF' || stored?.user.role === 'ADMIN') {
+      setSession(stored);
+      setMessage(`Xin chào ${stored.user.displayName}.`);
     }
+    setSessionResolved(true);
   }, []);
 
   async function handleLookup(event: React.FormEvent<HTMLFormElement>) {
@@ -121,7 +110,11 @@ export function CheckInConsole() {
   }
 
   return (
-    <section className="operations-shell" aria-labelledby="check-in-title">
+    <section
+      className="operations-shell"
+      data-hydrated={sessionResolved && session ? 'true' : 'false'}
+      aria-labelledby="check-in-title"
+    >
       <div className="operations-heading">
         <div>
           <p className="eyebrow">Check-in hành khách</p>
@@ -156,11 +149,11 @@ export function CheckInConsole() {
           </label>
           <button
             type="submit"
-            disabled={!interactive || !session || !credential.trim() || busyTicketId !== null}
+            disabled={!sessionResolved || !session || !credential.trim() || busyTicketId !== null}
           >
             {busyTicketId === 'lookup' ? 'Đang tra cứu…' : 'Tra cứu vé'}
           </button>
-          {!session && <a href="/login">Đăng nhập tài khoản vận hành</a>}
+          {sessionResolved && !session && <a href="/login">Đăng nhập tài khoản vận hành</a>}
         </form>
 
         <div className="ticket-results" aria-live="polite">

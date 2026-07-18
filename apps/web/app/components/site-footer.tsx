@@ -15,7 +15,7 @@ export function SiteFooter() {
       <nav className="site-footer-links" aria-label="Liên kết cuối trang">
         <Link href="/#search">Tìm chuyến</Link>
         <Link href="/assistant">Trợ lý đặt vé</Link>
-        <Link href="/#policies">Chính sách vé</Link>
+        <Link href="/#popular-routes">Tuyến phổ biến</Link>
         <Link href="/login">Tài khoản</Link>
       </nav>
       <div className="site-footer-meta">

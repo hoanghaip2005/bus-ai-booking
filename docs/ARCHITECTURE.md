@@ -103,13 +103,16 @@ service databases or own business rules. Typed tools call the GraphQL Gateway or
 generated internal clients with the same validation and authorization policy.
 Dynamic tool output is validated again before it enters model context.
 
-M7.1 uses a deterministic local provider (`ben-viet-local`) so local and CI
-demonstrations do not require an external model credential. The provider emits
-one typed `searchTrips` call, then streams a response grounded only in its
-validated GraphQL result. The route accepts a single plain-text question, does
-not accept client-supplied tool calls, and logs only request metadata and
-message length. Its bounded in-memory rate limiter is a local/demo boundary;
-shared deployments must replace it with the platform Redis rate-limit adapter.
+The deterministic local provider (`ben-viet-local`) remains the local/CI
+fallback. When `OPENAI_API_KEY` is configured, unprotected trip-search prompts
+use the OpenAI Responses API with `OPENAI_MODEL` (default `gpt-5.4-mini`). The
+external model can see and call only `searchTrips`: the first step is forced to
+call that tool and the answer step cannot call another tool. Booking lookup,
+policy, guidance and safety/refusal flows stay on the deterministic provider so
+credentials and exact citations do not enter an external model. Tool-owned
+display strings are sanitized before model context. The route accepts a single
+plain-text question, does not accept client-supplied tool calls, and logs only
+request metadata and message length.
 
 M7.2 adds two constrained tools. `getBookingStatus` calls the public GraphQL
 `bookingLookup` query, which forwards over gRPC to Booking Service. Booking
@@ -181,6 +184,16 @@ document in Redis for 60 seconds under `mcp:resource:v1:popular-routes`.
 parallel and returns only component names with `UP`/`DOWN`; it never serializes
 addresses, ports, credentials, traces, or exception details. Resource reads
 emit outcome counters but do not log resource bodies.
+
+Nginx is the only external entrypoint and load-balances the stateless GraphQL
+Gateway pool with passive failure handling. Local/demo runs fork two Node
+cluster workers on ports 4000 and 4010 from the same application entrypoint;
+production high availability runs the same entrypoint in separate containers
+or hosts.
+HTTP requests use the default round-robin upstream policy and
+GraphQL/WebSocket connections stay on the selected upstream for their
+connection lifetime. Redis Pub/Sub keeps seat-status fan-out correct when
+different clients land on different Gateway instances.
 
 Nginx bounds MCP requests to 256 KiB, ten requests/second per client with a
 burst of twenty, and twenty concurrent connections. Upstream connect/send

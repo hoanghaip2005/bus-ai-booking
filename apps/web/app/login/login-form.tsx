@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import {
@@ -10,9 +11,10 @@ import {
   refreshSession,
   viewer,
 } from './auth-client';
-import { authStorageKey } from '../lib/auth-session';
+import { authStorageKey, clearAuthSession, storeAuthSession } from '../lib/auth-session';
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -28,9 +30,9 @@ export function LoginForm() {
       const stored = JSON.parse(serialized) as AuthSession;
       void viewer(stored.accessToken)
         .then((user) => setSession({ ...stored, user }))
-        .catch(() => sessionStorage.removeItem(authStorageKey));
+        .catch(() => clearAuthSession());
     } catch {
-      sessionStorage.removeItem(authStorageKey);
+      clearAuthSession();
     }
   }, []);
 
@@ -42,6 +44,7 @@ export function LoginForm() {
       persist(authenticated);
       setSession(authenticated);
       setMessage(`Xin chào ${authenticated.user.displayName}.`);
+      router.replace(roleLandingPath(authenticated.user.role));
     } catch (error) {
       setMessage(clientMessage(error));
     } finally {
@@ -69,7 +72,7 @@ export function LoginForm() {
     setBusy(true);
     try {
       await logout(session.refreshToken);
-      sessionStorage.removeItem(authStorageKey);
+      clearAuthSession();
       setSession(null);
       setMessage('Bạn đã đăng xuất an toàn.');
     } catch (error) {
@@ -80,7 +83,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="auth-grid">
+    <div className="auth-grid" data-hydrated={interactive ? 'true' : 'false'}>
       <section className="auth-card" aria-labelledby="login-title">
         <p className="eyebrow">Tài khoản Bến Việt</p>
         <h1 id="login-title">Chào mừng bạn trở lại.</h1>
@@ -175,8 +178,14 @@ function roleLabel(role: AuthSession['user']['role']): string {
   return 'Khách hàng';
 }
 
+function roleLandingPath(role: AuthSession['user']['role']): string {
+  if (role === 'ADMIN') return '/admin/operations';
+  if (role === 'STAFF') return '/staff/check-in';
+  return '/account/bookings';
+}
+
 function persist(session: AuthSession): void {
-  sessionStorage.setItem(authStorageKey, JSON.stringify(session));
+  storeAuthSession(session);
 }
 
 function clientMessage(error: unknown): string {

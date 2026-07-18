@@ -106,7 +106,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-Migration được áp dụng theo thứ tự `001` đến `027`; seed có tính idempotent.
+Migration được áp dụng theo thứ tự `001` đến `028`; seed có tính idempotent.
 Không sửa migration đã được áp dụng.
 
 Reset hoàn toàn dữ liệu local:
@@ -129,8 +129,9 @@ Mở terminal riêng:
 pnpm dev
 ```
 
-Lệnh này chạy web, GraphQL Gateway, MCP, toàn bộ service và worker qua
-Turborepo. Giữ terminal này mở.
+Lệnh này chạy web, hai GraphQL Gateway listener (`4000`, `4010`), MCP, toàn bộ
+service và worker qua Turborepo. Nginx phân phối GraphQL request giữa hai
+listener. Giữ terminal này mở.
 
 Ở terminal thứ hai, chờ readiness:
 
@@ -174,11 +175,12 @@ Nên demo và E2E qua `8080` để test đúng Nginx boundary.
 
 ## 8. Tài khoản demo
 
-| Role     | Email                      | Password       |
-| -------- | -------------------------- | -------------- |
-| CUSTOMER | `customer.demo@benviet.vn` | `Customer123!` |
-| STAFF    | `staff.demo@benviet.vn`    | `Staff123!`    |
-| ADMIN    | `admin.demo@benviet.vn`    | `Admin123!`    |
+| Role     | Email                       | Password       |
+| -------- | --------------------------- | -------------- |
+| CUSTOMER | `customer.demo@benviet.vn`  | `Customer123!` |
+| CUSTOMER | `customer2.demo@benviet.vn` | `Customer123!` |
+| STAFF    | `staff.demo@benviet.vn`     | `Staff123!`    |
+| ADMIN    | `admin.demo@benviet.vn`     | `Admin123!`    |
 
 Đây là credential local/test:
 
@@ -189,6 +191,57 @@ Nên demo và E2E qua `8080` để test đúng Nginx boundary.
 
 ## 9. Demo nhanh toàn hệ thống
 
+### Mã demo cho Staff check-in
+
+Sau khi chạy `pnpm db:seed`, đăng nhập bằng tài khoản Staff và thử ba loại mã sau:
+
+| Loại mã     | Giá trị                             |
+| ----------- | ----------------------------------- |
+| Mã đặt vé   | `BV-STAFF-DEMO-01`                  |
+| Mã vé       | `VT-DEMO-STAFF-01`                  |
+| Nội dung QR | `BV-STAFF-DEMO-01-VT-DEMO-STAFF-01` |
+
+Cả ba giá trị cùng tra về hành khách `Staff Seed Passenger`, ghế `A03`, chuyến
+`00000000-0000-4000-8000-000000000701`. Chạy lại `pnpm db:seed` để đưa vé demo
+về trạng thái `TICKET_ISSUED` sau khi đã thử check-in.
+
+### Dữ liệu tìm chuyến tháng 07/2026
+
+Seed tạo 182 chuyến, phủ liên tục từ `2026-07-18` đến `2026-07-30` trên 10 chiều
+tuyến:
+
+- TP.HCM ↔ Đà Lạt.
+- TP.HCM ↔ Nha Trang.
+- TP.HCM ↔ Cần Thơ.
+- Đà Nẵng ↔ Hà Nội.
+- Đà Lạt ↔ Nha Trang.
+
+Mỗi ngày TP.HCM → Đà Lạt có ba khung giờ `07:00`, `15:30`, `22:00`; TP.HCM →
+Nha Trang có hai khung giờ `06:30`, `20:00`; TP.HCM → Cần Thơ có hai khung giờ
+`07:30`, `16:00`. Các chiều còn lại có ít nhất một chuyến mỗi ngày.
+
+### Vé mẫu trong “Vé của tôi”
+
+Đăng nhập `customer.demo@benviet.vn` để xem ba booking ổn định:
+
+| Booking               | Trạng thái        | Mục đích                                  |
+| --------------------- | ----------------- | ----------------------------------------- |
+| `BV-CUSTOMER-JULY-01` | `TICKET_ISSUED`   | Mở chi tiết vé, QR, HTML và PDF           |
+| `BV-CUSTOMER-JULY-02` | `PAID`            | Kiểm tra trạng thái đang chờ phát hành vé |
+| `BV-CUSTOMER-JULY-03` | `PENDING_PAYMENT` | Kiểm tra booking chưa thanh toán          |
+
+Chạy lại `pnpm db:seed` để khôi phục trạng thái ban đầu nếu đã hủy hoặc check-in
+vé mẫu.
+
+### Dữ liệu vận hành tháng 07/2026
+
+Seed `011_july_2026_operations_demo.sql` bổ sung 26 booking, 26 payment attempt,
+16 vé điện tử, notification delivery log, trạng thái ghế và audit vận hành trên
+các chuyến từ `2026-07-18` đến `2026-07-30`. Seed cũng đưa search/booking/payment
+analytics facts vào các durable outbox; khi stack chạy, relay Kafka sẽ phát các
+fact và Analytics Consumer dựng lại báo cáo theo ngày, tuyến và tỷ lệ chuyển đổi.
+Chạy lại `pnpm db:seed` an toàn, không nhân đôi event nhờ khóa event id.
+
 Khi `pnpm dev` đang chạy:
 
 ```bash
@@ -197,7 +250,7 @@ pnpm demo:verify
 
 Flow kiểm tra:
 
-1. HTTP/Nginx, GraphQL, gRPC và WebSocket.
+1. HTTP/Nginx, GraphQL load balancing, gRPC và WebSocket.
 2. Location alias và tìm chuyến.
 3. Redis seat hold với TTL.
 4. Booking `PENDING_PAYMENT`.
@@ -410,12 +463,15 @@ Artifact lỗi nằm trong `test-results/` hoặc `playwright-report/`.
 ### Smoke, load, restore và dashboard
 
 ```bash
+pnpm test:load-balancer
 pnpm test:smoke
 pnpm test:mcp-load
 pnpm test:backup-restore
 pnpm test:release-dashboard
 ```
 
+- `test:load-balancer`: xác nhận Nginx phân phối GraphQL request đến cả hai
+  Gateway listener.
 - `test:smoke`: full journey qua Nginx.
 - `test:mcp-load`: 20 request, concurrency 4, kiểm tra p95 regression.
 - `test:backup-restore`: restore PostgreSQL vào database tạm rồi cleanup.

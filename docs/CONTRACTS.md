@@ -19,6 +19,12 @@ Milestone 0 and must keep these semantics.
 - `adminBookings(filter: AdminBookingFilter, page: PageInput): BookingConnection!`
 - `staffTicketLookup(input: StaffTicketLookupInput!): [StaffTicketView!]!`
 - `revenueSummary(input: RevenueSummaryInput!): RevenueSummary!`
+
+GraphQL aggregate money fields use the custom `Long` scalar rather than the
+built-in 32-bit `Int`. The Gateway serializes only JavaScript-safe integers;
+individual fares and booking totals remain integer VND under their existing
+bounded `Int` inputs.
+
 - `popularRoutes(input: PopularRoutesInput!): [PopularRoute!]!`
 
 ### Mutations
@@ -622,7 +628,10 @@ ticket-issued state and cancellation eligibility. Wrong email and unknown code
 produce the same neutral response. Contact and passenger identity fields are
 absent. `getPolicy` can read only `bus://policy/cancellation` and
 `bus://policy/checkin`, and answers preserve source title, version and effective
-date. Admin tools and external model credentials remain disabled.
+date. Admin tools remain disabled. When `OPENAI_API_KEY` is configured, only
+unprotected trip-search prompts use the external provider; it is restricted to
+the typed `searchTrips` tool. Booking, policy, guidance and refusal flows remain
+deterministic and never send lookup credentials to the external provider.
 
 M7.3 keeps the same HTTP body and tool contracts while adding boundary rules:
 

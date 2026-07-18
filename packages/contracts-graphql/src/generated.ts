@@ -1,4 +1,4 @@
-import type { GraphQLResolveInfo } from 'graphql';
+import type { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type RequireFields<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
@@ -9,6 +9,7 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  Long: { input: number; output: number; }
 };
 
 export type AdminCatalog = {
@@ -59,7 +60,7 @@ export type AdminPaymentSummary = {
   consumerLag: AnalyticsConsumerLag;
   failedCount: Scalars['Int']['output'];
   lastProcessedAt: Maybe<Scalars['String']['output']>;
-  succeededAmountVnd: Scalars['Int']['output'];
+  succeededAmountVnd: Scalars['Long']['output'];
   succeededCount: Scalars['Int']['output'];
   successRate: Scalars['Float']['output'];
   timezone: Scalars['String']['output'];
@@ -79,7 +80,7 @@ export type AdminRevenueSummary = {
   paidBookingCount: Scalars['Int']['output'];
   ticketCount: Scalars['Int']['output'];
   timezone: Scalars['String']['output'];
-  totalRevenueVnd: Scalars['Int']['output'];
+  totalRevenueVnd: Scalars['Long']['output'];
 };
 
 export type AdminRoute = {
@@ -279,7 +280,7 @@ export type BookingOperationalSummary = {
   __typename?: 'BookingOperationalSummary';
   bookingCount: Scalars['Int']['output'];
   passengerCount: Scalars['Int']['output'];
-  revenueVnd: Scalars['Int']['output'];
+  revenueVnd: Scalars['Long']['output'];
   statusCounts: Array<BookingStatusCount>;
 };
 
@@ -433,7 +434,7 @@ export type DailyRevenue = {
   __typename?: 'DailyRevenue';
   localDate: Scalars['String']['output'];
   paidBookingCount: Scalars['Int']['output'];
-  revenueVnd: Scalars['Int']['output'];
+  revenueVnd: Scalars['Long']['output'];
   ticketCount: Scalars['Int']['output'];
 };
 
@@ -818,7 +819,7 @@ export type ReleaseSeatHoldPayload = {
 export type RouteTicketSales = {
   __typename?: 'RouteTicketSales';
   paidBookingCount: Scalars['Int']['output'];
-  revenueVnd: Scalars['Int']['output'];
+  revenueVnd: Scalars['Long']['output'];
   routeCode: Scalars['String']['output'];
   routeId: Scalars['ID']['output'];
   routeLabel: Scalars['String']['output'];
@@ -1310,6 +1311,7 @@ export type ResolversTypes = {
   LoginInput: LoginInput;
   LogoutInput: LogoutInput;
   LogoutPayload: ResolverTypeWrapper<LogoutPayload>;
+  Long: ResolverTypeWrapper<Scalars['Long']['output']>;
   Mutation: ResolverTypeWrapper<Record<PropertyKey, never>>;
   PassengerProfile: ResolverTypeWrapper<PassengerProfile>;
   PassengerProfileInput: PassengerProfileInput;
@@ -1425,6 +1427,7 @@ export type ResolversParentTypes = {
   LoginInput: LoginInput;
   LogoutInput: LogoutInput;
   LogoutPayload: LogoutPayload;
+  Long: Scalars['Long']['output'];
   Mutation: Record<PropertyKey, never>;
   PassengerProfile: PassengerProfile;
   PassengerProfileInput: PassengerProfileInput;
@@ -1510,7 +1513,7 @@ export type AdminPaymentSummaryResolvers<ContextType = any, ParentType extends R
   consumerLag: Resolver<ResolversTypes['AnalyticsConsumerLag'], ParentType, ContextType>;
   failedCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   lastProcessedAt: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  succeededAmountVnd: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  succeededAmountVnd: Resolver<ResolversTypes['Long'], ParentType, ContextType>;
   succeededCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   successRate: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   timezone: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -1528,7 +1531,7 @@ export type AdminRevenueSummaryResolvers<ContextType = any, ParentType extends R
   paidBookingCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   ticketCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timezone: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  totalRevenueVnd: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  totalRevenueVnd: Resolver<ResolversTypes['Long'], ParentType, ContextType>;
 };
 
 export type AdminRouteResolvers<ContextType = any, ParentType extends ResolversParentTypes['AdminRoute'] = ResolversParentTypes['AdminRoute']> = {
@@ -1697,7 +1700,7 @@ export type BookingLookupResolvers<ContextType = any, ParentType extends Resolve
 export type BookingOperationalSummaryResolvers<ContextType = any, ParentType extends ResolversParentTypes['BookingOperationalSummary'] = ResolversParentTypes['BookingOperationalSummary']> = {
   bookingCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   passengerCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  revenueVnd: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  revenueVnd: Resolver<ResolversTypes['Long'], ParentType, ContextType>;
   statusCounts: Resolver<Array<ResolversTypes['BookingStatusCount']>, ParentType, ContextType>;
 };
 
@@ -1788,7 +1791,7 @@ export type CreateTripResultResolvers<ContextType = any, ParentType extends Reso
 export type DailyRevenueResolvers<ContextType = any, ParentType extends ResolversParentTypes['DailyRevenue'] = ResolversParentTypes['DailyRevenue']> = {
   localDate: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   paidBookingCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  revenueVnd: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  revenueVnd: Resolver<ResolversTypes['Long'], ParentType, ContextType>;
   ticketCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
 };
 
@@ -1809,6 +1812,10 @@ export type LocationSuggestionResolvers<ContextType = any, ParentType extends Re
 export type LogoutPayloadResolvers<ContextType = any, ParentType extends ResolversParentTypes['LogoutPayload'] = ResolversParentTypes['LogoutPayload']> = {
   revoked: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
 };
+
+export interface LongScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['Long'], any> {
+  name: 'Long';
+}
 
 export type MutationResolvers<ContextType = any, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
   cancelBooking: Resolver<ResolversTypes['CancellationResult'], ParentType, ContextType, RequireFields<MutationCancelBookingArgs, 'input'>>;
@@ -1915,7 +1922,7 @@ export type ReleaseSeatHoldPayloadResolvers<ContextType = any, ParentType extend
 
 export type RouteTicketSalesResolvers<ContextType = any, ParentType extends ResolversParentTypes['RouteTicketSales'] = ResolversParentTypes['RouteTicketSales']> = {
   paidBookingCount: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  revenueVnd: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  revenueVnd: Resolver<ResolversTypes['Long'], ParentType, ContextType>;
   routeCode: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   routeId: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   routeLabel: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -2139,6 +2146,7 @@ export type Resolvers<ContextType = any> = {
   DeletePassengerProfilePayload: DeletePassengerProfilePayloadResolvers<ContextType>;
   LocationSuggestion: LocationSuggestionResolvers<ContextType>;
   LogoutPayload: LogoutPayloadResolvers<ContextType>;
+  Long: GraphQLScalarType;
   Mutation: MutationResolvers<ContextType>;
   PassengerProfile: PassengerProfileResolvers<ContextType>;
   PaymentResult: PaymentResultResolvers<ContextType>;

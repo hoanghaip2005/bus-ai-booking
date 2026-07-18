@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 test('guest selects Vietnamese locations by unaccented aliases with the keyboard', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#search')).toHaveAttribute('data-ready', 'true');
 
   const origin = page.getByRole('combobox', { name: 'Điểm đi' });
@@ -28,7 +28,7 @@ test('guest selects Vietnamese locations by unaccented aliases with the keyboard
 });
 
 test('autocomplete exposes an empty state and can swap selected locations', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#search')).toHaveAttribute('data-ready', 'true');
 
   const origin = page.getByRole('combobox', { name: 'Điểm đi' });
@@ -65,16 +65,35 @@ test('autocomplete exposes loading and dependency error states', async ({ page }
       body: JSON.stringify({ errors: [{ message: 'Dịch vụ địa điểm đang tạm gián đoạn.' }] }),
     });
   });
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#search')).toHaveAttribute('data-ready', 'true');
 
   await page.getByRole('combobox', { name: 'Điểm đi' }).fill('Sai Gon');
   await expect(page.getByText('Đang tìm địa điểm...')).toBeVisible();
   await expect(page.getByText('Dịch vụ địa điểm đang tạm gián đoạn.')).toBeVisible();
 });
 
+test('popular route shortcuts open the route landing page', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('heading', { name: 'Chuyến gần nhất đang mở bán.' })).toBeVisible();
+  await expect(page.locator('.home-trip-card')).toHaveCount(3);
+  await expect(page.getByRole('link', { name: /^Chọn chuyến / }).first()).toBeVisible();
+
+  const popularRoute = page.getByRole('link', { name: 'Xem chuyến TP.HCM → Đà Lạt' });
+  await expect(popularRoute).toBeVisible();
+  await popularRoute.click();
+
+  await expect(page).toHaveURL(/\/routes\/hcm-to-dli\?date=\d{4}-\d{2}-\d{2}/);
+  await expect(page.getByRole('heading', { name: /TP\.HCM.*Đà Lạt/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: '← Tìm tuyến khác' })).toBeVisible();
+});
+
 test('guest searches seeded trips and sees Vietnam-local times through Nginx', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('#search')).toHaveAttribute('data-ready', 'true');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#search')).toHaveAttribute('data-ready', 'true', {
+    timeout: 20_000,
+  });
 
   const origin = page.getByRole('combobox', { name: 'Điểm đi' });
   await origin.fill('Sai Gon');
@@ -99,14 +118,32 @@ test('guest searches seeded trips and sees Vietnam-local times through Nginx', a
 
   await page.getByLabel('Sắp xếp').selectOption('PRICE_LOWEST');
   await page.getByRole('button', { name: 'Áp dụng' }).click();
-  await expect(page).toHaveURL(/sort=PRICE_LOWEST/);
-  await expect(page.locator('.trip-card').first()).toContainText('Kumho');
+  await expect(page).toHaveURL(/sort=PRICE_LOWEST/, { timeout: 20_000 });
+  await expect(page.locator('.trip-card').first()).toContainText('Kumho', { timeout: 20_000 });
 
   await page.getByLabel('Giá tối đa').selectOption('250000');
   await page.getByRole('button', { name: 'Áp dụng' }).click();
-  await expect(page.getByText('01', { exact: true })).toBeVisible();
+  await expect(page.getByText('01', { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await expect(page.locator('.trip-card').first()).toContainText('Kumho');
+});
+
+test('expanded July seed covers active routes from 18 to 30 July 2026', async ({ page }) => {
+  const parameters = new URLSearchParams({
+    originId: '00000000-0000-4000-8000-000000000001',
+    destinationId: '00000000-0000-4000-8000-000000000003',
+    date: '2026-07-24',
+    origin: 'TP.HCM',
+    destination: 'Nha Trang',
+  });
+  await page.goto(`/trips?${parameters.toString()}`, { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('heading', { name: /TP\.HCM.*Nha Trang/ })).toBeVisible();
+  await expect(page.locator('.trip-card')).toHaveCount(2);
+  await expect(page.getByText('06:30', { exact: true })).toBeVisible();
+  await expect(page.getByText('20:00', { exact: true })).toBeVisible();
+  await expect(page.locator('.trip-card').filter({ hasText: '300.000' })).toHaveCount(1);
+  await expect(page.locator('.trip-card').filter({ hasText: '320.000' })).toHaveCount(1);
 });
 
 test('no-result search suggests the nearest dates with matching trips', async ({ page }) => {
@@ -117,7 +154,7 @@ test('no-result search suggests the nearest dates with matching trips', async ({
     origin: 'TP.HCM',
     destination: 'Đà Lạt',
   });
-  await page.goto(`/trips?${parameters.toString()}`);
+  await page.goto(`/trips?${parameters.toString()}`, { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByText('Ngày này chưa có chuyến phù hợp')).toBeVisible();
   await expect(page.getByRole('link', { name: '20/06/2030' })).toBeVisible();
@@ -146,7 +183,7 @@ test('guest opens trip detail with schedule, policies and authoritative seat lay
 test('route landing page server-renders canonical SEO metadata and seeded trips', async ({
   page,
 }) => {
-  await page.goto('/routes/hcm-to-dli?date=2030-06-20');
+  await page.goto('/routes/hcm-to-dli?date=2030-06-20', { waitUntil: 'domcontentloaded' });
 
   await expect(page).toHaveTitle('Vé xe TP.HCM đi Đà Lạt ngày 20/06/2030 | Bến Việt');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -159,7 +196,9 @@ test('route landing page server-renders canonical SEO metadata and seeded trips'
 
 test('trip detail remains usable at a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/trips/00000000-0000-4000-8000-000000000701');
+  await page.goto('/trips/00000000-0000-4000-8000-000000000701', {
+    waitUntil: 'domcontentloaded',
+  });
 
   await expect(page.getByRole('heading', { name: /TP\.HCM.*Đà Lạt/ })).toBeVisible();
   const fitsViewport = await page.evaluate(
@@ -179,7 +218,7 @@ test('guest holds a seat, restores it after refresh and releases it', async ({ p
     await page.goto(`/trips/${tripId}`, { waitUntil: 'domcontentloaded' });
 
     const seat = page.getByRole('button', { name: 'Ghế A01: còn trống' });
-    await expect(seat).toBeEnabled();
+    await expect(seat).toBeEnabled({ timeout: 20_000 });
     await seat.focus();
     await seat.press('Enter');
     await expect(seat).toHaveAttribute('aria-pressed', 'true');
@@ -210,8 +249,12 @@ test('connected guests refetch authoritative seat state after realtime notificat
 
   try {
     await Promise.all([
-      firstGuest.goto('/trips/00000000-0000-4000-8000-000000000702'),
-      secondGuest.goto('/trips/00000000-0000-4000-8000-000000000702'),
+      firstGuest.goto('/trips/00000000-0000-4000-8000-000000000702', {
+        waitUntil: 'domcontentloaded',
+      }),
+      secondGuest.goto('/trips/00000000-0000-4000-8000-000000000702', {
+        waitUntil: 'domcontentloaded',
+      }),
     ]);
 
     await firstGuest.getByRole('button', { name: 'Ghế A02: còn trống' }).click();
@@ -309,7 +352,7 @@ test('guest retries after simulated failure and pays only after durable seat con
 
   try {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`/trips/${tripId}`);
+    await page.goto(`/trips/${tripId}`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Ghế A04: còn trống' }).click();
     await page.getByRole('button', { name: 'Giữ ghế trong 5 phút' }).click();
     ({ holdToken, checkoutSessionId } = await page.evaluate(
@@ -340,7 +383,7 @@ test('guest retries after simulated failure and pays only after durable seat con
     await expect(page.getByRole('button', { name: 'Ghế A04: bạn đang giữ' })).toBeDisabled();
 
     observer = await context.newPage();
-    await observer.goto(`/trips/${tripId}`);
+    await observer.goto(`/trips/${tripId}`, { waitUntil: 'domcontentloaded' });
     await expect(observer.getByRole('button', { name: 'Ghế A04: đang được giữ' })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();

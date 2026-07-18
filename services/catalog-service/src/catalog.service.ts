@@ -726,7 +726,7 @@ export class CatalogService {
       }
     }
 
-    this.searchAnalyticsPublisher.publish(
+    await this.searchAnalyticsPublisher.publish(
       createSearchPerformedEvent({
         endpoints,
         criteria,

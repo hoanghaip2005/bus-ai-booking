@@ -1,3 +1,5 @@
+scalar Long
+
 type Query {
   adminRevenueSummary(input: AnalyticsDateRangeInput!): AdminRevenueSummary!
   adminPopularRoutes(input: PopularRoutesInput!): AdminPopularRoutes!
@@ -34,7 +36,7 @@ type RouteTicketSales {
   routeLabel: String!
   paidBookingCount: Int!
   ticketCount: Int!
-  revenueVnd: Int!
+  revenueVnd: Long!
 }
 
 type AdminPaymentSummary {
@@ -42,7 +44,7 @@ type AdminPaymentSummary {
   succeededCount: Int!
   failedCount: Int!
   successRate: Float!
-  succeededAmountVnd: Int!
+  succeededAmountVnd: Long!
   consumerLag: AnalyticsConsumerLag!
   lastProcessedAt: String
   timezone: String!
@@ -95,7 +97,7 @@ input AnalyticsDateRangeInput {
 
 type AdminRevenueSummary {
   days: [DailyRevenue!]!
-  totalRevenueVnd: Int!
+  totalRevenueVnd: Long!
   paidBookingCount: Int!
   ticketCount: Int!
   lastProcessedAt: String
@@ -104,7 +106,7 @@ type AdminRevenueSummary {
 
 type DailyRevenue {
   localDate: String!
-  revenueVnd: Int!
+  revenueVnd: Long!
   paidBookingCount: Int!
   ticketCount: Int!
 }
@@ -875,7 +877,7 @@ type AdminOperations {
 type BookingOperationalSummary {
   bookingCount: Int!
   passengerCount: Int!
-  revenueVnd: Int!
+  revenueVnd: Long!
   statusCounts: [BookingStatusCount!]!
 }
 

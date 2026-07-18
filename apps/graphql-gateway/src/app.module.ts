@@ -14,6 +14,7 @@ import { SeatStatusSubscriptionService } from './seat-status-subscription.servic
 import { SeatInventoryGatewayService } from './seat-inventory.service';
 import { TicketGatewayService } from './ticket.service';
 import { AnalyticsGatewayService } from './analytics.service';
+import { longScalar } from './long.scalar';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AnalyticsGatewayService } from './analytics.service';
       typePaths: [require.resolve('@bus/contracts-graphql/schema')],
       graphiql: process.env.NODE_ENV !== 'production',
       introspection: process.env.NODE_ENV !== 'production',
+      resolvers: { Long: longScalar },
       subscriptions: {
         'graphql-ws': true,
       },

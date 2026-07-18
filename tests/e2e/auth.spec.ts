@@ -7,6 +7,10 @@ test.describe.configure({ mode: 'serial' });
 
 test('CUSTOMER can log in and cannot open the ADMIN workspace', async ({ page }) => {
   await loginAs(page, 'customer');
+  await expect(page).toHaveURL(/\/account\/bookings$/);
+  await page.goto('/account', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/account\/bookings$/);
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
   await expect(page.getByText('Khách hàng', { exact: true })).toBeVisible();
 
@@ -14,8 +18,44 @@ test('CUSTOMER can log in and cannot open the ADMIN workspace', async ({ page })
   await expect(page.getByRole('link', { name: 'Đăng nhập quản trị' })).toBeVisible();
 });
 
+test('CUSTOMER opens a seeded ticket with QR and keeps account navigation while booking', async ({
+  page,
+}) => {
+  await loginAs(page, 'customer');
+  const bookingCard = page
+    .locator('.booking-history-card')
+    .filter({ hasText: 'BV-CUSTOMER-JULY-01' });
+  await expect(bookingCard).toBeVisible();
+  const detailsButton = bookingCard.getByRole('button', { name: 'Xem chi tiết vé' });
+  await detailsButton.focus();
+  await detailsButton.press('Enter');
+  await expect(bookingCard.getByText('VT-CUSTOMER-JULY-01', { exact: true })).toBeVisible();
+  await expect(
+    bookingCard.getByRole('img', { name: 'Mã QR vé VT-CUSTOMER-JULY-01' }),
+  ).toBeVisible();
+  await expect(bookingCard.getByRole('link', { name: 'Tải PDF' })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await Promise.all([
+    page.waitForURL(/\/$/, { waitUntil: 'domcontentloaded' }),
+    page.getByRole('link', { name: 'Đặt vé', exact: true }).click(),
+  ]);
+  await expect(page.getByRole('link', { name: 'Vé của tôi' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Đăng nhập' })).toHaveCount(0);
+});
+
 test('ADMIN can extend the session and log out', async ({ page }) => {
   await loginAs(page, 'admin');
+  await expect(page).toHaveURL(/\/admin\/operations$/);
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/admin\/operations$/);
+  await expect(page.getByRole('link', { name: 'Tài khoản' })).toBeVisible();
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Quản trị Demo' })).toBeVisible();
   await page.getByRole('button', { name: 'Gia hạn phiên' }).click();
   await expect(page.getByText('Phiên đăng nhập đã được gia hạn.')).toBeVisible();
@@ -25,44 +65,161 @@ test('ADMIN can extend the session and log out', async ({ page }) => {
   await expect(page.getByText('Một tài khoản, nhiều tiện ích')).toBeVisible();
 });
 
+test('STAFF is routed directly to the check-in workspace', async ({ page }) => {
+  await loginAs(page, 'staff');
+  await expect(page).toHaveURL(/\/staff\/check-in$/);
+  await page.goto('/staff', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/staff\/check-in$/);
+  await expect(
+    page.getByRole('heading', { name: 'Xác nhận lên xe nhanh và chính xác.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Tài khoản', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Đăng nhập tài khoản vận hành' })).toHaveCount(0);
+});
+
+test('ADMIN keeps its navigation on the shared check-in workspace and filters by a trip option', async ({
+  page,
+}) => {
+  await loginAs(page, 'admin');
+  await page.goto('/staff/check-in', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('a[href="/admin/operations"]')).toBeVisible();
+  await expect(page.locator('a[href="/admin/catalog"]')).toBeVisible();
+
+  await page.goto('/admin/operations', { waitUntil: 'domcontentloaded' });
+  const tripFilter = page.locator('#operations-trip-id');
+  await expect(tripFilter).toHaveRole('combobox');
+  await expect(tripFilter.locator('option[value=""]')).toHaveCount(1);
+  await expect.poll(() => tripFilter.locator('option').count()).toBeGreaterThan(1);
+  await tripFilter.selectOption({ index: 1 });
+  await page.locator('.operations-filter button').click();
+  await expect(page.getByText(/valid UUID/i)).toHaveCount(0);
+});
+
+test('ADMIN workspaces expose searchable trip and Catalog management UI', async ({ page }) => {
+  await loginAs(page, 'admin');
+
+  await page.goto('/admin/trips', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Danh sách chuyến' })).toBeVisible();
+  await expect(
+    page.getByRole('searchbox', { name: 'Tìm tuyến, xe, trạng thái hoặc mã chuyến' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Tạo chuyến mới' })).toBeVisible();
+
+  await page.goto('/admin/catalog', { waitUntil: 'domcontentloaded' });
+  for (const tab of ['Điểm dừng', 'Tuyến xe', 'Xe', 'Sơ đồ ghế']) {
+    await page.getByRole('button', { name: tab, exact: true }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'Tạo phiên bản sơ đồ ghế' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Tuyến xe', exact: true }).click();
+  await page.getByRole('button', { name: 'Chọn', exact: true }).first().click();
+  const routeEditorMetrics = await page.locator('.admin-editor-form').evaluate((form) => ({
+    clientWidth: form.clientWidth,
+    scrollWidth: form.scrollWidth,
+  }));
+  expect(routeEditorMetrics.scrollWidth).toBeLessThanOrEqual(routeEditorMetrics.clientWidth);
+
+  for (const tab of ['Xe', 'Sơ đồ ghế']) {
+    await page.getByRole('button', { name: tab, exact: true }).click();
+    const editorMetrics = await page.locator('.admin-editor-form').evaluate((form) => ({
+      clientWidth: form.clientWidth,
+      scrollWidth: form.scrollWidth,
+    }));
+    expect(editorMetrics.scrollWidth).toBeLessThanOrEqual(editorMetrics.clientWidth);
+  }
+
+  for (const viewport of [
+    { width: 1024, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const tab of ['Xe', 'Sơ đồ ghế']) {
+      await page.getByRole('button', { name: tab, exact: true }).click();
+      const responsiveMetrics = await page.locator('.admin-editor-form').evaluate((form) => ({
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        editorWidth: form.clientWidth,
+        editorScrollWidth: form.scrollWidth,
+      }));
+      expect(responsiveMetrics.documentWidth).toBeLessThanOrEqual(responsiveMetrics.viewportWidth);
+      expect(responsiveMetrics.editorScrollWidth).toBeLessThanOrEqual(
+        responsiveMetrics.editorWidth,
+      );
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto('/admin/operations', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('searchbox', { name: /Tìm booking/ })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: /Tìm hành động/ })).toBeVisible();
+});
+
 test('ADMIN opens operations dashboard and blocks a seat idempotently through GraphQL', async ({
   page,
 }) => {
   let createdTripId: string | undefined;
   await loginAs(page, 'admin');
-  await expect(page.getByRole('heading', { name: 'Quản trị Demo' })).toBeVisible();
-
-  await page.goto('/admin/operations');
+  await expect(page).toHaveURL(/\/admin\/operations$/);
   await expect(
     page.getByRole('heading', { name: 'Theo dõi đặt vé và doanh thu trong một màn hình.' }),
   ).toBeVisible();
   await expect(page.getByText('Doanh thu 30 ngày')).toBeVisible();
   await expect(page.getByText('Tỷ lệ đặt vé thành công')).toBeVisible();
   await expect(page.getByText('Thanh toán thành công')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Doanh thu theo ngày' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Tuyến được quan tâm nhiều' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Vé bán theo tuyến' })).toBeVisible();
 
-  await page.goto('/admin/trips');
+  await page.goto('/admin/trips', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Tạm khóa ghế' })).toBeVisible();
+  const scheduledRow = page.getByRole('row').filter({ hasText: 'Đã lên lịch' }).first();
+  await scheduledRow.getByRole('button', { name: 'Quản lý' }).click();
+  await expect(page.getByRole('heading', { name: 'Trạng thái chuyến' })).toBeVisible();
+  await expect(page.locator('.admin-trip-state-track [aria-current="step"]')).toContainText(
+    'Đã lên lịch',
+  );
+  await expect(page.locator('.admin-trip-action-button-sale')).toBeEnabled();
+  const tripActionStyles = await page.locator('.admin-trip-actions').evaluate((card) => {
+    const enabled = card.querySelector<HTMLButtonElement>(
+      '.admin-trip-action-button:not(:disabled)',
+    );
+    const disabled = card.querySelector<HTMLButtonElement>('.admin-trip-action-button:disabled');
+    return {
+      clientWidth: card.clientWidth,
+      scrollWidth: card.scrollWidth,
+      enabledBackground: enabled ? getComputedStyle(enabled).backgroundColor : '',
+      enabledColor: enabled ? getComputedStyle(enabled).color : '',
+      disabledBackground: disabled ? getComputedStyle(disabled).backgroundColor : '',
+      disabledColor: disabled ? getComputedStyle(disabled).color : '',
+    };
+  });
+  expect(tripActionStyles.scrollWidth).toBeLessThanOrEqual(tripActionStyles.clientWidth);
+  expect(tripActionStyles.enabledBackground).not.toBe(tripActionStyles.disabledBackground);
+  expect(tripActionStyles.enabledColor).not.toBe(tripActionStyles.disabledColor);
+  await page.getByRole('button', { name: '+ Tạo chuyến mới' }).click();
+
   try {
-    const createTripButton = page.getByRole('button', { name: 'Tạo chuyến' });
+    const createTripButton = page.getByRole('button', { name: 'Tạo chuyến', exact: true });
+    await expect(createTripButton).toBeEnabled();
     await createTripButton.click();
     const creationMessage = page.locator('.operations-message');
     await expect(creationMessage).toContainText('Đã tạo chuyến mới.');
-    createdTripId = await page.getByLabel('Mã chuyến').inputValue();
+    createdTripId =
+      (await page.locator('[data-selected-trip-id]').getAttribute('data-selected-trip-id')) ??
+      undefined;
     expect(createdTripId).toBeTruthy();
     await expect(createTripButton).toBeEnabled();
 
     await page.getByLabel('Mã ghế, cách nhau bằng dấu phẩy').fill('A03');
     await page.getByRole('button', { name: 'Khóa ghế' }).click();
-    await expect(page.getByText(/A03.*Tạm khóa/)).toBeVisible();
+    await expect(page.getByText(/Đã khóa.*A03/)).toBeVisible();
     await page.getByRole('button', { name: 'Mở bán lại' }).click();
-    await expect(page.getByText(/A03.*Còn bán/)).toBeVisible();
+    await expect(page.getByText(/Đã mở bán lại.*A03/)).toBeVisible();
   } finally {
     if (createdTripId) deleteAdminTrip(createdTripId);
   }
 
-  await page.goto('/admin/catalog');
+  await page.goto('/admin/catalog', { waitUntil: 'domcontentloaded' });
   await expect(
     page.getByRole('heading', {
       name: 'Quản lý tuyến, xe và điểm đón.',
@@ -72,7 +229,7 @@ test('ADMIN opens operations dashboard and blocks a seat idempotently through Gr
 
 test('ADMIN manages every Catalog resource family through GraphQL', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('/login');
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   const loginResponse = await page.request.post('/graphql', {
     data: {
       query: `mutation($input: LoginInput!) { login(input:$input) { accessToken refreshToken accessExpiresAt refreshExpiresAt user { id email displayName role } } }`,
@@ -86,7 +243,7 @@ test('ADMIN manages every Catalog resource family through GraphQL', async ({ pag
     (session) => sessionStorage.setItem('bus:auth-session:v1', JSON.stringify(session)),
     loginBody.data.login,
   );
-  await page.goto('/admin/catalog');
+  await page.goto('/admin/catalog', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('h1')).toBeVisible();
 
   const headers = { authorization: `Bearer ${accessToken}` };
@@ -238,9 +395,9 @@ test('CUSTOMER checkout is linked to myBookings while guest ownership stays sepa
 
   try {
     await loginAs(page, 'customer');
-    await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
+    await expect(page).toHaveURL(/\/account\/bookings$/);
 
-    await page.goto(`/trips/${registeredTripId}`);
+    await page.goto(`/trips/${registeredTripId}`, { waitUntil: 'domcontentloaded' });
     const seatButton = page.getByRole('button', { name: /Ghế [A-Z]\d+: còn trống/ }).first();
     const seatLabel = await seatButton.getAttribute('aria-label');
     const seatId = seatLabel?.match(/Ghế ([A-Z]\d+)/)?.[1];
@@ -275,7 +432,8 @@ test('CUSTOMER checkout is linked to myBookings while guest ownership stays sepa
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();
     await expect(page.getByText('Thanh toán hoàn tất', { exact: true })).toBeVisible();
 
-    await page.goto('/account/bookings');
+    await page.getByRole('link', { name: 'Mở Vé của tôi' }).click();
+    await expect(page).toHaveURL(/\/account\/bookings$/);
     const bookingCard = page
       .locator('.booking-history-card')
       .filter({ hasText: bookingCode ?? '' });
@@ -308,9 +466,8 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
 
   try {
     await loginAs(page, 'customer');
-    await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeEnabled();
-    await page.goto('/account/passengers');
+    await expect(page).toHaveURL(/\/account\/bookings$/);
+    await page.goto('/account/passengers', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Khách hàng Demo' })).toBeVisible();
 
     await page.getByLabel('Nhãn dễ nhớ').fill('E2E Profile');
@@ -327,7 +484,7 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
       'E2E Passenger',
     );
 
-    await page.goto(`/trips/${tripId}`);
+    await page.goto(`/trips/${tripId}`, { waitUntil: 'domcontentloaded' });
     const seatButton = page.getByRole('button', { name: /Ghế [A-Z]\d+: còn trống/ }).first();
     const seatLabel = await seatButton.getAttribute('aria-label');
     const seatId = seatLabel?.match(/Ghế ([A-Z]\d+)/)?.[1];
@@ -378,15 +535,32 @@ test('CUSTOMER manages passenger profiles and prefills checkout without coupling
   }
 });
 
-async function loginAs(page: Page, role: 'customer' | 'admin'): Promise<void> {
+async function loginAs(page: Page, role: 'customer' | 'staff' | 'admin'): Promise<void> {
   const credentials =
     role === 'admin'
       ? { email: 'admin.demo@benviet.vn', password: 'Admin123!' }
-      : { email: 'customer.demo@benviet.vn', password: 'Customer123!' };
-  await page.goto('/login');
+      : role === 'staff'
+        ? { email: 'staff.demo@benviet.vn', password: 'Staff123!' }
+        : { email: 'customer.demo@benviet.vn', password: 'Customer123!' };
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.auth-grid')).toHaveAttribute('data-hydrated', 'true', {
+    timeout: 20_000,
+  });
   await page.getByLabel('Email').fill(credentials.email);
   await page.getByLabel('Mật khẩu').fill(credentials.password);
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  const submit = page.getByRole('button', { name: 'Đăng nhập', exact: true });
+  await expect(submit).toBeEnabled({ timeout: 20_000 });
+  await Promise.all([
+    page.waitForURL(
+      role === 'admin'
+        ? '**/admin/operations'
+        : role === 'staff'
+          ? '**/staff/check-in'
+          : '**/account/bookings',
+      { waitUntil: 'domcontentloaded' },
+    ),
+    submit.click(),
+  ]);
 }
 
 async function deleteProfilesByLabel(

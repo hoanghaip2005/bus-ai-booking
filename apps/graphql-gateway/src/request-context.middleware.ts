@@ -30,6 +30,8 @@ export class RequestContextMiddleware implements NestMiddleware {
     response.setHeader('x-request-id', requestId);
     response.setHeader('x-search-session-id', searchSessionId);
     response.setHeader('x-checkout-session-id', checkoutSessionId);
+    const localPort = request.socket?.localPort ?? Number(process.env.GRAPHQL_PORT ?? 4000);
+    response.setHeader('x-gateway-instance', `gateway-${localPort}`);
     const startedAt = performance.now();
 
     withRequestContext(requestId, () => {

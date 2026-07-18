@@ -1,18 +1,35 @@
 import { randomUUID } from 'node:crypto';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SeatInventoryDatabase } from './seat-inventory.database';
 import { SeatStateRepository } from './seat-state.repository';
 
 const database = new SeatInventoryDatabase();
 const repository = new SeatStateRepository(database);
+const tripId = randomUUID();
+const seededBookingId = randomUUID();
 
 describe('SeatStateRepository', () => {
-  afterAll(async () => database.onModuleDestroy());
+  beforeAll(async () => {
+    await database.query(
+      `INSERT INTO seat_inventory.trip_seat_states
+         (trip_id, seat_id, status, booking_id, reason, updated_by_actor)
+       VALUES ($1, 'A01', 'BOOKED', $2, NULL, 'seat-state-integration'),
+              ($1, 'A02', 'BLOCKED', NULL, 'Integration maintenance', 'seat-state-integration')`,
+      [tripId, seededBookingId],
+    );
+  });
+
+  afterAll(async () => {
+    await database.query('DELETE FROM seat_inventory.trip_seat_states WHERE trip_id = $1', [
+      tripId,
+    ]);
+    await database.onModuleDestroy();
+  });
 
   it('reads only durable BOOKED and BLOCKED states owned by Seat Inventory', async () => {
-    await expect(repository.listByTrip('00000000-0000-4000-8000-000000000701')).resolves.toEqual([
+    await expect(repository.listByTrip(tripId)).resolves.toEqual([
       { seatId: 'A01', status: 'BOOKED' },
       { seatId: 'A02', status: 'BLOCKED' },
     ]);
@@ -24,7 +41,6 @@ describe('SeatStateRepository', () => {
 
   it('blocks and unblocks a seat idempotently while preserving audit correlation', async () => {
     const actorId = randomUUID();
-    const tripId = '00000000-0000-4000-8000-000000000701';
     const base = {
       tripId,
       seatIds: ['A03'],

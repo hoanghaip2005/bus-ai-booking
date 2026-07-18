@@ -6,6 +6,16 @@ import { describe, expect, it } from 'vitest';
 const schemaSource = readFileSync(new URL('./schema.graphql', import.meta.url), 'utf8');
 
 describe('GraphQL foundation contract', () => {
+  it('uses a wide integer scalar for aggregate VND reports', () => {
+    const schema = buildSchema(schemaSource);
+
+    expect(schema.getType('Long')?.toString()).toBe('Long');
+    expect(schemaSource).toContain('totalRevenueVnd: Long!');
+    expect(schemaSource).toContain('succeededAmountVnd: Long!');
+    expect(schemaSource).toMatch(/type DailyRevenue\s*{[^}]*revenueVnd: Long!/s);
+    expect(schemaSource).toMatch(/type RouteTicketSales\s*{[^}]*revenueVnd: Long!/s);
+  });
+
   it('exposes platform and catalog health queries', async () => {
     const schema = buildSchema(schemaSource);
     const result = await graphql({

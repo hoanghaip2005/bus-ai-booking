@@ -5,7 +5,9 @@ import { CatalogDatabase } from './catalog.database';
 import { CatalogService } from './catalog.service';
 import { LocationRepository } from './location.repository';
 import { RequestContextMiddleware } from './request-context.middleware';
-import { SearchAnalyticsPublisher } from './search-analytics.publisher';
+import { SearchAnalyticsPublisher, SearchKafkaOutboxPublisher } from './search-analytics.publisher';
+import { SearchOutboxRelay } from './search-outbox.relay';
+import { SearchOutboxRepository } from './search-outbox.repository';
 import { TripRepository } from './trip.repository';
 import { TripSearchCache } from './trip-search-cache';
 
@@ -16,7 +18,10 @@ import { TripSearchCache } from './trip-search-cache';
     LocationRepository,
     TripRepository,
     TripSearchCache,
+    SearchOutboxRepository,
     SearchAnalyticsPublisher,
+    SearchKafkaOutboxPublisher,
+    SearchOutboxRelay,
     CatalogService,
   ],
 })

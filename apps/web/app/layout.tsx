@@ -18,7 +18,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="vi" data-scroll-behavior="smooth">
-      <body className={BeVietnamPro.variable}>{children}</body>
+      <body className={BeVietnamPro.variable} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

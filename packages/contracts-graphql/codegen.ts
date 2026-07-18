@@ -8,6 +8,7 @@ const config: CodegenConfig = {
       config: {
         avoidOptionals: true,
         enumsAsTypes: true,
+        scalars: { Long: 'number' },
         useTypeImports: true,
       },
     },

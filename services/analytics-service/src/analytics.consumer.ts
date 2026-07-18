@@ -45,14 +45,15 @@ export class AnalyticsConsumer implements OnApplicationBootstrap, OnModuleDestro
     await this.consumer.subscribe({ topic: paymentEventsTopic, fromBeginning: true });
     await this.consumer.run({
       eachMessage: async ({ topic, message }) => {
-        if (!message.value) return;
-        const parsed: unknown = JSON.parse(message.value.toString());
+        const parsed = parseAnalyticsMessage(message.value);
         const applied =
-          topic === bookingEventsTopic && isBookingDomainEvent(parsed)
+          parsed !== undefined && topic === bookingEventsTopic && isBookingDomainEvent(parsed)
             ? await this.analyticsService.applyBookingEvent(parsed)
-            : topic === searchEventsTopic && isSearchPerformedEvent(parsed)
+            : parsed !== undefined && topic === searchEventsTopic && isSearchPerformedEvent(parsed)
               ? await this.analyticsService.applySearchEvent(parsed)
-              : topic === paymentEventsTopic && isPaymentAttemptedEvent(parsed)
+              : parsed !== undefined &&
+                  topic === paymentEventsTopic &&
+                  isPaymentAttemptedEvent(parsed)
                 ? await this.analyticsService.applyPaymentEvent(parsed)
                 : undefined;
         if (applied === undefined) {
@@ -129,6 +130,15 @@ export class AnalyticsConsumer implements OnApplicationBootstrap, OnModuleDestro
     await this.consumer.stop().catch(() => undefined);
     await this.consumer.disconnect().catch(() => undefined);
     await this.admin.disconnect().catch(() => undefined);
+  }
+}
+
+export function parseAnalyticsMessage(value: Buffer | null): unknown | undefined {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value.toString());
+  } catch {
+    return undefined;
   }
 }
 

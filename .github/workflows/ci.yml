@@ -91,6 +91,7 @@ jobs:
           app_pid=$!
           trap 'kill $app_pid || true' EXIT
           node scripts/wait-for-apps.mjs
+          pnpm test:load-balancer
           pnpm test:smoke
           pnpm test:integration
           pnpm test:e2e

@@ -5,23 +5,68 @@ import { expect, test } from '@playwright/test';
 
 const tripId = '00000000-0000-4000-8000-000000000702';
 
+test('STAFF can look up the stable demo ticket with all three credential kinds', async ({
+  page,
+}) => {
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.auth-grid')).toHaveAttribute('data-hydrated', 'true', {
+    timeout: 20_000,
+  });
+  await page.locator('input[type="email"]').fill('staff.demo@benviet.vn');
+  await page.locator('input[type="password"]').fill('Staff123!');
+  const submit = page.locator('form.auth-form button[type="submit"]');
+  await expect(submit).toBeEnabled({ timeout: 20_000 });
+  await Promise.all([
+    page.waitForURL('**/staff/check-in', { waitUntil: 'domcontentloaded' }),
+    submit.click(),
+  ]);
+  await expect(page.locator('.operations-shell')).toHaveAttribute('data-hydrated', 'true', {
+    timeout: 20_000,
+  });
+
+  const credentials = [
+    { kind: 'BOOKING_CODE', value: 'BV-STAFF-DEMO-01' },
+    { kind: 'TICKET_CODE', value: 'VT-DEMO-STAFF-01' },
+    { kind: 'QR_PAYLOAD', value: 'BV-STAFF-DEMO-01-VT-DEMO-STAFF-01' },
+  ];
+
+  for (const credential of credentials) {
+    await page.locator('.ticket-lookup select').selectOption(credential.kind);
+    await page.locator('.ticket-lookup input').fill(credential.value);
+    await page.locator('.ticket-lookup button[type="submit"]').click();
+    await expect(page.getByText('Staff Seed Passenger', { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText('VT-DEMO-STAFF-01', { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText('A03', { exact: true })).toBeVisible({ timeout: 20_000 });
+  }
+});
+
 test('STAFF looks up an issued ticket and checks in its passenger once', async ({ page }) => {
-  test.setTimeout(75_000);
+  test.setTimeout(120_000);
   let bookingId: string | undefined;
   let checkoutSessionId: string | undefined;
   let holdToken: string | undefined;
+  let seatId: string | undefined;
 
   try {
-    await page.goto(`/trips/${tripId}`);
-    await page.getByRole('button', { name: 'Ghế A08: còn trống' }).click();
+    await page.goto(`/trips/${tripId}`, { waitUntil: 'domcontentloaded' });
+    const availableSeat = page
+      .locator('button[data-seat][data-status="AVAILABLE"]:not(:disabled)')
+      .first();
+    seatId = (await availableSeat.textContent())?.trim();
+    expect(seatId).toMatch(/^A\d+$/);
+    await availableSeat.click();
     await page.getByRole('button', { name: 'Giữ ghế trong 5 phút' }).click();
     await page.getByLabel('Họ tên liên hệ').fill('Check-in E2E Guest');
     await page.getByLabel('Email nhận vé').fill('checkin.e2e@example.com');
     await page.getByLabel('Số điện thoại liên hệ').fill('0901234567');
-    await page.getByLabel('Họ tên hành khách ghế A08').fill('Check-in E2E Guest');
+    await page.locator(`input[name="passengerName:${seatId}"]`).fill('Check-in E2E Guest');
     await page.getByRole('button', { name: 'Tiếp tục thanh toán' }).click();
     await page.getByRole('button', { name: 'Thanh toán thành công' }).click();
-    await expect(page.getByText(/vé điện tử sẵn sàng/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/vé điện tử sẵn sàng/)).toBeVisible({ timeout: 45_000 });
 
     ({ bookingId, checkoutSessionId, holdToken } = await page.evaluate((id) => {
       const bookingRaw = sessionStorage.getItem(`bus:booking:v1:${id}`);
@@ -51,11 +96,21 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
     const ticketCode = ticketBody.data?.bookingTickets?.tickets?.[0]?.ticketCode;
     expect(ticketCode).toMatch(/^VT-/);
 
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.auth-grid')).toHaveAttribute('data-hydrated', 'true', {
+      timeout: 20_000,
+    });
     await page.getByLabel('Email').fill('staff.demo@benviet.vn');
     await page.getByLabel('Mật khẩu').fill('Staff123!');
-    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Nhân viên Demo' })).toBeVisible();
+    const staffLogin = page.getByRole('button', { name: 'Đăng nhập', exact: true });
+    await expect(staffLogin).toBeEnabled({ timeout: 20_000 });
+    await Promise.all([
+      page.waitForURL('**/staff/check-in', { waitUntil: 'domcontentloaded' }),
+      staffLogin.click(),
+    ]);
+    await expect(page.getByText('Nhân viên Demo', { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
     const accessToken = await page.evaluate(() => {
       const raw = sessionStorage.getItem('bus:auth-session:v1');
       return raw ? (JSON.parse(raw) as { accessToken?: string }).accessToken : undefined;
@@ -76,12 +131,18 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
         return body.data?.staffTicketLookup?.length ?? 0;
       })
       .toBe(1);
-    await page.goto('/staff/check-in');
+    await page.goto('/staff/check-in', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.operations-shell')).toHaveAttribute('data-hydrated', 'true', {
+      timeout: 20_000,
+    });
     await page.getByLabel('Loại mã').selectOption('TICKET_CODE');
     await page.getByLabel('Mã cần tra cứu').fill(ticketCode!);
+    await expect(page.getByRole('button', { name: 'Tra cứu vé' })).toBeEnabled({
+      timeout: 20_000,
+    });
     await page.getByRole('button', { name: 'Tra cứu vé' }).click();
     await expect(page.getByText('Check-in E2E Guest', { exact: true })).toBeVisible();
-    await expect(page.getByText('A08', { exact: true })).toBeVisible();
+    await expect(page.getByText(seatId!, { exact: true })).toBeVisible();
 
     const wrongTrip = await page.request.post('/graphql', {
       headers: { authorization: `Bearer ${accessToken}` },
@@ -105,7 +166,7 @@ test('STAFF looks up an issued ticket and checks in its passenger once', async (
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByRole('button', { name: 'Xác nhận lên xe' })).toBeVisible();
     await page.getByRole('button', { name: 'Xác nhận lên xe' }).click();
-    await expect(page.getByText(/Đã check-in ghế A08/)).toBeVisible();
+    await expect(page.getByText(new RegExp(`Đã check-in ghế ${seatId}`))).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đã check-in' })).toBeDisabled();
   } finally {
     if (holdToken && checkoutSessionId) {

@@ -1,5 +1,6 @@
 import { TripSearchForm } from './components/trip-search-form';
 import { AiTripChat } from './components/ai-trip-chat';
+import { HomeFeaturedTrips } from './components/home-featured-trips';
 import { SiteFooter } from './components/site-footer';
 import { SiteHeader } from './components/site-header';
 
@@ -8,8 +9,6 @@ const travelNotes = [
   ['Vé gửi ngay', 'Vé điện tử có mã QR được gửi sau khi thanh toán thành công.'],
   ['Hỗ trợ tận tâm', 'Cần đổi lịch hay tra cứu vé? Đội ngũ luôn sẵn sàng hỗ trợ.'],
 ] as const;
-
-const popularRoutes = ['TP.HCM → Đà Lạt', 'Đà Lạt → TP.HCM', 'TP.HCM → Nha Trang'];
 
 export default function HomePage() {
   return (
@@ -54,19 +53,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="route-highlights" id="policies" aria-labelledby="route-highlights-title">
-        <div>
-          <p className="eyebrow">Tuyến được yêu thích</p>
-          <h2 id="route-highlights-title">Chọn một nơi để bắt đầu.</h2>
-        </div>
-        <div className="route-chip-list">
-          {popularRoutes.map((route) => (
-            <span className="route-chip" key={route}>
-              {route}
-            </span>
-          ))}
-        </div>
-      </section>
+      <HomeFeaturedTrips />
 
       <section className="support-strip" id="support" aria-label="Hỗ trợ đặt vé">
         <strong>Cần một gợi ý?</strong>

@@ -429,7 +429,16 @@ export function isBookingDomainEvent(value: unknown): value is BookingDomainEven
   const envelopeValid =
     typeof event.eventId === 'string' &&
     isUuid(event.eventId) &&
+    event.eventVersion === 1 &&
     typeof event.occurredAt === 'string' &&
+    isValidTimestamp(event.occurredAt) &&
+    typeof event.traceId === 'string' &&
+    event.traceId.length > 0 &&
+    typeof event.requestId === 'string' &&
+    event.requestId.length > 0 &&
+    typeof event.aggregateId === 'string' &&
+    isUuid(event.aggregateId) &&
+    event.producer === 'booking-service' &&
     typeof event.eventType === 'string' &&
     ['BookingCreatedV1', 'BookingPaidV1', 'BookingExpiredV1', 'BookingCancelledV1'].includes(
       event.eventType,
@@ -440,7 +449,16 @@ export function isBookingDomainEvent(value: unknown): value is BookingDomainEven
   const payload = event.payload as Partial<BookingDomainEvent['payload']>;
   return (
     typeof payload === 'object' &&
+    isUuid(String(payload.bookingId ?? '')) &&
+    isUuid(String(payload.tripId ?? '')) &&
+    isUuid(String(payload.routeId ?? '')) &&
+    typeof payload.routeCode === 'string' &&
+    payload.routeCode.length > 0 &&
+    Array.isArray(payload.seatIds) &&
+    payload.seatIds.length > 0 &&
     typeof (payload as { paidAt?: unknown }).paidAt === 'string' &&
+    isValidTimestamp(String((payload as { paidAt?: unknown }).paidAt)) &&
+    isUuid(String((payload as { paymentAttemptId?: unknown }).paymentAttemptId ?? '')) &&
     Number.isSafeInteger((payload as { totalPriceVnd?: unknown }).totalPriceVnd) &&
     Number((payload as { totalPriceVnd?: unknown }).totalPriceVnd) >= 0 &&
     Number.isInteger((payload as { passengerCount?: unknown }).passengerCount) &&
@@ -454,9 +472,18 @@ export function isSearchPerformedEvent(value: unknown): value is SearchPerformed
   if (
     !isUuid(String(event.eventId ?? '')) ||
     !isUuid(String(event.searchSessionId ?? '')) ||
+    event.eventVersion !== (event.eventType === 'SearchPerformedV1' ? 1 : 2) ||
+    typeof event.occurredAt !== 'string' ||
+    !isValidTimestamp(event.occurredAt) ||
+    typeof event.traceId !== 'string' ||
+    event.traceId.length === 0 ||
+    event.producer !== 'catalog-service' ||
     (event.eventType !== 'SearchPerformedV1' && event.eventType !== 'SearchPerformedV2') ||
     !event.payload ||
-    !Number.isInteger(event.payload.resultCount)
+    !Number.isInteger(event.payload.resultCount) ||
+    event.payload.resultCount < 0 ||
+    !isUuid(String(event.payload.originLocationId ?? '')) ||
+    !isUuid(String(event.payload.destinationLocationId ?? ''))
   ) {
     return false;
   }
@@ -466,8 +493,12 @@ export function isSearchPerformedEvent(value: unknown): value is SearchPerformed
     Array.isArray(v2.payload?.matchedRoutes) &&
     v2.payload.matchedRoutes.every(
       (route) =>
-        isUuid(route.routeId) &&
+        Boolean(route) &&
+        typeof route === 'object' &&
+        isUuid(String(route.routeId ?? '')) &&
+        typeof route.originName === 'string' &&
         route.originName.trim().length > 0 &&
+        typeof route.destinationName === 'string' &&
         route.destinationName.trim().length > 0,
     )
   );
@@ -482,13 +513,24 @@ export function isPaymentAttemptedEvent(value: unknown): value is PaymentAttempt
     event.eventVersion === 1 &&
     isUuid(String(event.eventId ?? '')) &&
     typeof event.occurredAt === 'string' &&
+    isValidTimestamp(event.occurredAt) &&
+    typeof event.traceId === 'string' &&
+    event.traceId.length > 0 &&
+    typeof event.requestId === 'string' &&
+    event.requestId.length > 0 &&
+    isUuid(String(event.aggregateId ?? '')) &&
+    event.producer === 'payment-service' &&
     Boolean(payload) &&
     isUuid(String(payload?.paymentAttemptId ?? '')) &&
     isUuid(String(payload?.bookingId ?? '')) &&
     (payload?.requestedOutcome === 'SUCCESS' || payload?.requestedOutcome === 'FAILURE') &&
     (payload?.status === 'SUCCEEDED' || payload?.status === 'FAILED') &&
     Number.isSafeInteger(payload?.amountVnd) &&
-    Number(payload?.amountVnd) >= 0
+    Number(payload?.amountVnd) >= 0 &&
+    (payload?.status === 'SUCCEEDED' ? payload?.requestedOutcome === 'SUCCESS' : true) &&
+    (payload?.status === 'FAILED'
+      ? typeof payload.failureCode === 'string' && payload.failureCode.length > 0
+      : !payload?.failureCode)
   );
 }
 
@@ -532,4 +574,8 @@ function isLocalDate(value: string): boolean {
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isValidTimestamp(value: string): boolean {
+  return !Number.isNaN(Date.parse(value));
 }

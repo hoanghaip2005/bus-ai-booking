@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 
+import { getStoredAuthSession } from '../../lib/auth-session';
 import { BookingClientError, type GuestBooking } from './booking-client';
 import { getCheckoutSessionId } from './checkout-session';
 import { simulatePayment } from './payment-client';
@@ -64,9 +66,16 @@ export function SimulatedPaymentPanel({
         </p>
         <BookingSummary booking={booking} />
         <TicketDeliveryPanel bookingId={booking.id} />
-        <button className="booking-reset-action" type="button" onClick={onStartNewBooking}>
-          Đặt thêm vé
-        </button>
+        <div className="booking-completion-actions">
+          {getStoredAuthSession()?.user.role === 'CUSTOMER' && (
+            <Link className="booking-reset-action" href="/account/bookings">
+              Mở Vé của tôi
+            </Link>
+          )}
+          <button className="booking-reset-action" type="button" onClick={onStartNewBooking}>
+            Đặt thêm vé
+          </button>
+        </div>
       </section>
     );
   }

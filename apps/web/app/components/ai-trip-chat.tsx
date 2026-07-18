@@ -21,8 +21,8 @@ const suggestions = [
     prompt: 'Chính sách hủy vé như thế nào?',
   },
   {
-    label: 'Cách tra cứu booking',
-    prompt: 'Tôi cần cung cấp gì để tra cứu trạng thái booking?',
+    label: 'Hướng dẫn đặt vé',
+    prompt: 'Hướng dẫn tôi các bước đặt vé',
   },
 ] as const;
 
@@ -31,9 +31,11 @@ export function AiTripChat({ standalone = false }: { standalone?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'streaming' | 'error'>('idle');
   const [error, setError] = useState('');
+  const sectionRef = useRef<HTMLElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    sectionRef.current?.setAttribute('data-hydrated', 'true');
     const container = messagesRef.current;
     if (container) container.scrollTop = container.scrollHeight;
   }, [messages, status]);
@@ -121,6 +123,7 @@ export function AiTripChat({ standalone = false }: { standalone?: boolean }) {
 
   return (
     <section
+      ref={sectionRef}
       className={`ai-chat${standalone ? ' ai-chat-standalone' : ''}`}
       id="ai-assistant"
       aria-labelledby="ai-chat-title"

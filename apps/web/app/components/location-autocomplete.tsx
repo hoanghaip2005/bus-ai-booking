@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { readGraphQlResponse } from '../lib/graphql-client';
+
 export interface LocationValue {
   id: string;
   name: string;
@@ -67,7 +69,10 @@ export function LocationAutocomplete({
             variables: { query, limit: 8 },
           }),
         });
-        const body = (await response.json()) as LocationSuggestionsResponse;
+        const body = await readGraphQlResponse<{ locationSuggestions: LocationValue[] }>(
+          response,
+          'Không thể tải địa điểm. Kiểm tra GraphQL Gateway đang chạy.',
+        );
         if (!response.ok || body.errors?.length) {
           throw new Error(body.errors?.[0]?.message ?? 'Không thể tải địa điểm.');
         }

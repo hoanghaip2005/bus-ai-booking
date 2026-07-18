@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 export default function AppError({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
-    console.error('web_route_error', { name: error.name });
+    console.info('web_route_error', { name: error.name });
   }, [error]);
 
   return (

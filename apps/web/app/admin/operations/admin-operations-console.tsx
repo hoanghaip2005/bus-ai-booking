@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
-import { authStorageKey } from '../../lib/auth-session';
-
-interface Session {
-  accessToken: string;
-  user: { displayName: string; role: 'CUSTOMER' | 'STAFF' | 'ADMIN' };
-}
+import { type StoredAuthSession } from '../../lib/auth-session';
+import { AdminClientError, authorizedGraphql, loadAuthorizedSession } from '../admin-client';
+import { AdminPagination, AdminSearch, normalizeAdminSearch, pageItems } from '../admin-ui';
 
 interface BookingView {
   id: string;
@@ -94,6 +92,17 @@ interface PaymentSummaryView {
   };
 }
 
+interface TripFilterCatalog {
+  routes: Array<{ id: string; code: string }>;
+  trips: Array<{
+    id: string;
+    routeId: string;
+    departureAt: string;
+    status: string;
+    isActive: boolean;
+  }>;
+}
+
 const operationsQuery = `query AdminOperations($input: AdminOperationsInput!, $analyticsInput: AnalyticsDateRangeInput!, $popularInput: PopularRoutesInput!) {
   adminOperations(input: $input) {
     summary { bookingCount passengerCount revenueVnd statusCounts { status count } }
@@ -121,74 +130,107 @@ const operationsQuery = `query AdminOperations($input: AdminOperationsInput!, $a
     attemptCount succeededCount failedCount successRate succeededAmountVnd
     consumerLag { available totalLag topics { topic lag } }
   }
+  adminCatalog {
+    routes { id code }
+    trips { id routeId departureAt status isActive }
+  }
 }`;
 
 export function AdminOperationsConsole() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [tripId, setTripId] = useState('');
+  const searchParams = useSearchParams();
+  const requestedTripId = searchParams.get('tripId')?.trim() ?? '';
+  const [session, setSession] = useState<StoredAuthSession | null>(null);
+  const [tripId, setTripId] = useState(requestedTripId);
+  const [tripFilterCatalog, setTripFilterCatalog] = useState<TripFilterCatalog>({
+    routes: [],
+    trips: [],
+  });
   const [data, setData] = useState<OperationsView | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummaryView | null>(null);
   const [popularRoutes, setPopularRoutes] = useState<PopularRoutesView | null>(null);
   const [conversion, setConversion] = useState<SearchConversionView | null>(null);
   const [ticketSales, setTicketSales] = useState<TicketSalesView | null>(null);
   const [payment, setPayment] = useState<PaymentSummaryView | null>(null);
+  const [bookingQuery, setBookingQuery] = useState('');
+  const [bookingPage, setBookingPage] = useState(1);
+  const [auditQuery, setAuditQuery] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Đăng nhập quản trị để xem báo cáo và hoạt động gần đây.');
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(authStorageKey);
-    if (!raw) return;
-    try {
-      const stored = JSON.parse(raw) as Session;
-      if (stored.user.role !== 'ADMIN') return;
+    void loadAuthorizedSession().then((stored) => {
+      if (!stored) return;
       setSession(stored);
-      void loadOperations(stored, '');
-    } catch {
-      sessionStorage.removeItem(authStorageKey);
-    }
+      void loadOperations(requestedTripId);
+    });
   }, []);
 
-  async function loadOperations(activeSession: Session, selectedTripId: string) {
+  async function loadOperations(selectedTripId: string) {
     setBusy(true);
     try {
       const range = lastThirtyDays();
-      const result = await adminGraphql<{
+      const response = await authorizedGraphql<{
         adminOperations: OperationsView;
         adminRevenueSummary: RevenueSummaryView;
         adminPopularRoutes: PopularRoutesView;
         adminSearchConversion: SearchConversionView;
         adminTicketSalesByRoute: TicketSalesView;
         adminPaymentSummary: PaymentSummaryView;
-      }>(
-        operationsQuery,
-        {
-          input: {
-            ...(selectedTripId.trim() && { tripId: selectedTripId.trim() }),
-            bookingLimit: 50,
-            auditLimit: 50,
-          },
-          analyticsInput: range,
-          popularInput: { ...range, limit: 5 },
+        adminCatalog: TripFilterCatalog;
+      }>(operationsQuery, {
+        input: {
+          ...(selectedTripId.trim() && { tripId: selectedTripId.trim() }),
+          bookingLimit: 100,
+          auditLimit: 100,
         },
-        activeSession.accessToken,
-      );
+        analyticsInput: range,
+        popularInput: { ...range, limit: 5 },
+      });
+      const result = response.data;
+      setSession(response.session);
       setData(result.adminOperations);
       setRevenue(result.adminRevenueSummary);
       setPopularRoutes(result.adminPopularRoutes);
       setConversion(result.adminSearchConversion);
       setTicketSales(result.adminTicketSalesByRoute);
       setPayment(result.adminPaymentSummary);
+      setTripFilterCatalog(result.adminCatalog);
+      setBookingPage(1);
+      setAuditPage(1);
       setMessage(
         selectedTripId.trim()
           ? `Đang lọc theo chuyến ${selectedTripId.trim()}.`
           : 'Số liệu vận hành đã được cập nhật.',
       );
     } catch (error) {
+      if (error instanceof AdminClientError && error.code === 'UNAUTHENTICATED') setSession(null);
       setMessage(error instanceof Error ? error.message : 'Không thể tải dữ liệu vận hành.');
     } finally {
       setBusy(false);
     }
   }
+
+  const filteredBookings = useMemo(() => {
+    const query = normalizeAdminSearch(bookingQuery);
+    if (!data || !query) return data?.bookings ?? [];
+    return data.bookings.filter((booking) =>
+      normalizeAdminSearch(
+        `${booking.bookingCode} ${booking.status} ${booking.trip.routeCode} ${booking.trip.originName} ${booking.trip.destinationName}`,
+      ).includes(query),
+    );
+  }, [bookingQuery, data]);
+  const filteredAuditEvents = useMemo(() => {
+    const query = normalizeAdminSearch(auditQuery);
+    if (!data || !query) return data?.auditEvents ?? [];
+    return data.auditEvents.filter((event) =>
+      normalizeAdminSearch(`${event.action} ${event.targetType} ${event.actorRole}`).includes(
+        query,
+      ),
+    );
+  }, [auditQuery, data]);
+  const bookingPageItems = pageItems(filteredBookings, bookingPage);
+  const auditPageItems = pageItems(filteredAuditEvents, auditPage);
 
   if (!session) {
     return (
@@ -223,16 +265,22 @@ export function AdminOperationsConsole() {
         className="operations-filter"
         onSubmit={(event) => {
           event.preventDefault();
-          if (session) void loadOperations(session, tripId);
+          if (session) void loadOperations(tripId);
         }}
       >
-        <label htmlFor="operations-trip-id">Lọc theo mã chuyến</label>
-        <input
+        <label htmlFor="operations-trip-id">Lọc theo chuyến</label>
+        <select
           id="operations-trip-id"
           value={tripId}
           onChange={(event) => setTripId(event.target.value)}
-          placeholder="Nhập mã chuyến cần xem"
-        />
+        >
+          <option value="">Tất cả chuyến</option>
+          {tripFilterOptions(tripFilterCatalog).map((trip) => (
+            <option key={trip.id} value={trip.id}>
+              {trip.label}
+            </option>
+          ))}
+        </select>
         <button type="submit" disabled={!session || busy}>
           {busy ? 'Đang tải…' : 'Áp dụng'}
         </button>
@@ -280,6 +328,36 @@ export function AdminOperationsConsole() {
                 : 'chưa có dữ liệu'}
               .
             </p>
+          )}
+
+          {revenue && (
+            <section className="operations-ledger" aria-labelledby="daily-revenue-title">
+              <div className="operations-section-heading">
+                <span>DOANH THU</span>
+                <h2 id="daily-revenue-title">Doanh thu theo ngày</h2>
+              </div>
+              {revenue.days.length === 0 ? (
+                <p>Chưa có doanh thu trong khoảng thời gian này.</p>
+              ) : (
+                <div className="daily-revenue-list">
+                  {revenue.days.map((day) => (
+                    <article className="operations-row daily-revenue-row" key={day.localDate}>
+                      <div>
+                        <strong>{formatLocalDate(day.localDate)}</strong>
+                        <span>{day.localDate}</span>
+                      </div>
+                      <div>
+                        <strong>{day.revenueVnd.toLocaleString('vi-VN')} ₫</strong>
+                        <span>
+                          {day.paidBookingCount.toLocaleString('vi-VN')} đơn đã thanh toán ·{' '}
+                          {day.ticketCount.toLocaleString('vi-VN')} vé
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
 
           {popularRoutes && (
@@ -344,10 +422,19 @@ export function AdminOperationsConsole() {
                 <span>ĐẶT VÉ</span>
                 <h2 id="booking-ledger-title">Đơn đặt vé gần nhất</h2>
               </div>
-              {data.bookings.length === 0 ? (
+              <AdminSearch
+                label="Tìm booking, tuyến hoặc trạng thái"
+                value={bookingQuery}
+                onChange={(value) => {
+                  setBookingQuery(value);
+                  setBookingPage(1);
+                }}
+                resultCount={filteredBookings.length}
+              />
+              {filteredBookings.length === 0 ? (
                 <p>Không có đơn đặt vé phù hợp.</p>
               ) : (
-                data.bookings.map((booking) => (
+                bookingPageItems.map((booking) => (
                   <article key={booking.id} className="operations-row">
                     <div>
                       <strong>{booking.bookingCode}</strong>
@@ -366,6 +453,11 @@ export function AdminOperationsConsole() {
                   </article>
                 ))
               )}
+              <AdminPagination
+                page={bookingPage}
+                totalItems={filteredBookings.length}
+                onChange={setBookingPage}
+              />
             </section>
 
             <section className="operations-ledger" aria-labelledby="audit-ledger-title">
@@ -373,10 +465,19 @@ export function AdminOperationsConsole() {
                 <span>HOẠT ĐỘNG</span>
                 <h2 id="audit-ledger-title">Thao tác gần đây</h2>
               </div>
-              {data.auditEvents.length === 0 ? (
+              <AdminSearch
+                label="Tìm hành động, đối tượng hoặc vai trò"
+                value={auditQuery}
+                onChange={(value) => {
+                  setAuditQuery(value);
+                  setAuditPage(1);
+                }}
+                resultCount={filteredAuditEvents.length}
+              />
+              {filteredAuditEvents.length === 0 ? (
                 <p>Chưa có hoạt động nào.</p>
               ) : (
-                data.auditEvents.map((event) => (
+                auditPageItems.map((event) => (
                   <article key={event.id} className="operations-row">
                     <div>
                       <strong>{actionLabel(event.action)}</strong>
@@ -389,12 +490,27 @@ export function AdminOperationsConsole() {
                   </article>
                 ))
               )}
+              <AdminPagination
+                page={auditPage}
+                totalItems={filteredAuditEvents.length}
+                onChange={setAuditPage}
+              />
             </section>
           </div>
         </>
       )}
     </section>
   );
+}
+
+function tripFilterOptions(catalog: TripFilterCatalog): Array<{ id: string; label: string }> {
+  const routeCodes = new Map(catalog.routes.map((route) => [route.id, route.code]));
+  return [...catalog.trips]
+    .sort((left, right) => Date.parse(right.departureAt) - Date.parse(left.departureAt))
+    .map((trip) => ({
+      id: trip.id,
+      label: `${routeCodes.get(trip.routeId) ?? 'Chuyến xe'} · ${formatDateTime(trip.departureAt)} · #${trip.id.slice(0, 8).toUpperCase()}${trip.isActive ? '' : ' · Tạm ngừng'}`,
+    }));
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -457,24 +573,9 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-async function adminGraphql<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  token: string,
-): Promise<T> {
-  const response = await fetch('/graphql', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = (await response.json()) as {
-    data?: T;
-    errors?: Array<{ message: string }>;
-  };
-  if (!response.ok || body.errors?.[0] || body.data === undefined) {
-    throw new Error(body.errors?.[0]?.message ?? 'Không thể tải dữ liệu vận hành.');
-  }
-  return body.data;
+function formatLocalDate(value: string): string {
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
 function lastThirtyDays(): { fromDate: string; toDate: string } {

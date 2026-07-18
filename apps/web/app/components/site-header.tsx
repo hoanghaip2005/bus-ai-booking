@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import {
+  authSessionChangedEvent,
+  getStoredAuthSession,
+  type StoredUserRole,
+} from '../lib/auth-session';
+
 type HeaderVariant = 'public' | 'account' | 'staff' | 'admin';
 
 interface NavigationItem {
@@ -29,14 +35,16 @@ const navByVariant: Record<HeaderVariant, NavigationItem[]> = {
   staff: [
     { href: '/', label: 'Đặt vé' },
     { href: '/assistant', label: 'Trợ lý' },
-    { href: '/staff/check-in', label: 'Check-in', action: true },
+    { href: '/staff/check-in', label: 'Check-in' },
+    { href: '/login', label: 'Tài khoản', action: true },
   ],
   admin: [
     { href: '/', label: 'Đặt vé' },
     { href: '/staff/check-in', label: 'Check-in' },
     { href: '/admin/trips', label: 'Lịch chạy' },
     { href: '/admin/operations', label: 'Báo cáo' },
-    { href: '/admin/catalog', label: 'Danh mục', action: true },
+    { href: '/admin/catalog', label: 'Danh mục' },
+    { href: '/login', label: 'Tài khoản', action: true },
   ],
 };
 
@@ -47,12 +55,41 @@ const labelByVariant: Record<HeaderVariant, string> = {
   admin: 'Quản trị vận hành',
 };
 
+let cachedHeaderRole: StoredUserRole | null | undefined;
+
 export function SiteHeader({ variant = 'public' }: { variant?: HeaderVariant }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const links = navByVariant[variant];
+  const [storedRole, setStoredRole] = useState<StoredUserRole | null>(
+    () => cachedHeaderRole ?? null,
+  );
+  const [sessionResolved, setSessionResolved] = useState(() => cachedHeaderRole !== undefined);
+  const authenticatedVariant = headerVariantForRole(storedRole);
+  const resolvedVariant: HeaderVariant =
+    variant === 'public' && authenticatedVariant
+      ? authenticatedVariant
+      : variant === 'staff' && storedRole === 'ADMIN'
+        ? 'admin'
+        : variant;
+  const links =
+    variant === 'public' && !sessionResolved
+      ? navByVariant.public.filter((link) => !link.action)
+      : navByVariant[resolvedVariant];
 
   useEffect(() => setMenuOpen(false), [pathname]);
+
+  useEffect(() => {
+    function syncRole() {
+      const role = getStoredAuthSession()?.user.role ?? null;
+      cachedHeaderRole = role;
+      setStoredRole(role);
+      setSessionResolved(true);
+    }
+
+    syncRole();
+    window.addEventListener(authSessionChangedEvent, syncRole);
+    return () => window.removeEventListener(authSessionChangedEvent, syncRole);
+  }, [pathname]);
 
   return (
     <header className="site-header">
@@ -62,7 +99,7 @@ export function SiteHeader({ variant = 'public' }: { variant?: HeaderVariant }) 
         </span>
         <span className="brand-copy">
           <strong>Bến Việt</strong>
-          <small>{labelByVariant[variant]}</small>
+          <small>{labelByVariant[resolvedVariant]}</small>
         </span>
       </Link>
 
@@ -104,4 +141,11 @@ export function SiteHeader({ variant = 'public' }: { variant?: HeaderVariant }) 
       </nav>
     </header>
   );
+}
+
+function headerVariantForRole(role: string | null): HeaderVariant | undefined {
+  if (role === 'CUSTOMER') return 'account';
+  if (role === 'STAFF') return 'staff';
+  if (role === 'ADMIN') return 'admin';
+  return undefined;
 }

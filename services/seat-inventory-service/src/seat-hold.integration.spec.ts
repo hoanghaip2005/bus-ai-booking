@@ -2,14 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import type { SeatStatusChangedV1 } from '@bus/contracts-events';
 import { createClient } from 'redis';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SeatHoldStore } from './seat-hold.store';
 import { SeatInventoryDatabase } from './seat-inventory.database';
 import { SeatInventoryService } from './seat-inventory.service';
 import { SeatStateRepository } from './seat-state.repository';
 
-const tripId = '00000000-0000-4000-8000-000000000701';
+const tripId = randomUUID();
+const seededBookingId = randomUUID();
 const owner = { type: 'GUEST_SESSION' as const, id: randomUUID() };
 const namespace = `test:seat-hold:v1:${randomUUID()}`;
 const eventChannel = `${namespace}:events`;
@@ -36,7 +37,20 @@ const service = new SeatInventoryService(
 );
 
 describe('SeatInventoryService Redis hold lifecycle', () => {
+  beforeAll(async () => {
+    await database.query(
+      `INSERT INTO seat_inventory.trip_seat_states
+         (trip_id, seat_id, status, booking_id, reason, updated_by_actor)
+       VALUES ($1, 'A01', 'BOOKED', $2, NULL, 'seat-hold-integration'),
+              ($1, 'A02', 'BLOCKED', NULL, 'Integration maintenance', 'seat-hold-integration')`,
+      [tripId, seededBookingId],
+    );
+  });
+
   afterAll(async () => {
+    await database.query('DELETE FROM seat_inventory.trip_seat_states WHERE trip_id = $1', [
+      tripId,
+    ]);
     await holdStore.onModuleDestroy();
     await database.onModuleDestroy();
     const cleanupClient = createClient({ url: 'redis://localhost:6379' });

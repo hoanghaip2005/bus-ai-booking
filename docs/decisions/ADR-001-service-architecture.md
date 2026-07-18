@@ -20,6 +20,8 @@ Project bắt buộc dùng GraphQL, gRPC, microservices, RabbitMQ/Kafka, Redis, 
 - Kafka ghi analytics event có retention/replay.
 - Redis xử lý cache, ephemeral hold và Pub/Sub adapter; PostgreSQL giữ dữ liệu bền vững.
 - Nginx là entrypoint duy nhất cho browser/external MCP client.
+- Nginx phân phối GraphQL traffic qua nhiều Gateway worker stateless; Redis
+  Pub/Sub giữ subscription fan-out nhất quán giữa các instance.
 
 ## Alternatives considered
 

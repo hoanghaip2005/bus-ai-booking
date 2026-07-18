@@ -86,14 +86,14 @@ export class AiSearchError extends Error {
 export function parseTripQuestion(message: string, now = new Date()): ParsedTripQuestion {
   const compact = message.trim().replace(/\s+/g, ' ');
   const route = compact.match(
-    /(?:^|\s)(?:từ|tu)\s+(.+?)\s+(?:đi|đến|den|tới|toi)\s+(.+?)(?=\s+(?:vào\s+)?ngày\b|\s+\d{1,2}[/-]\d{1,2}[/-]\d{4}\b|\s+\d{4}-\d{2}-\d{2}\b|[?.!,]|$)/iu,
+    /(?:^|\s)(?:từ|tu)\s+(.+?)\s+(?:đi|đến|den|tới|toi)\s+(.+?)(?=\s+(?:vào\s+)?ngày\b|\s+\d{1,2}[/-]\d{1,2}[/-]\d{4}\b|\s+\d{4}-\d{2}-\d{2}\b|(?<![Tt][Pp])[?.!,]|$)/iu,
   );
   if (!route) {
     throw new AiSearchError('INVALID_QUESTION', 'Hãy cho biết điểm đi, điểm đến và ngày đi.');
   }
 
-  const origin = cleanLocation(route[1]);
-  const destination = cleanLocation(route[2]);
+  const origin = normalizeLocationQueryInput(route[1]);
+  const destination = normalizeLocationQueryInput(route[2]);
   const travelDate = parseTravelDate(compact, now);
   const departureTimeFrom = /(?:^|\s)tối(?:\s|$)/iu.test(compact) ? '18:00' : undefined;
 
@@ -131,7 +131,11 @@ export async function executeTripSearch(
   input: ParsedTripQuestion,
   context: ToolRequestContext,
 ): Promise<TripSearchToolOutput> {
-  const validatedInput = tripSearchInputSchema.parse(input);
+  const validatedInput = tripSearchInputSchema.parse({
+    ...input,
+    origin: normalizeLocationQueryInput(input.origin),
+    destination: normalizeLocationQueryInput(input.destination),
+  });
   const locations = await executeGraphQl<{
     origin: z.infer<typeof locationSchema>[];
     destination: z.infer<typeof locationSchema>[];
@@ -191,12 +195,37 @@ export async function executeTripSearch(
     context,
   );
 
-  return tripSearchOutputSchema.parse({
+  return sanitizeTripSearchOutput({
     source: 'graphql-gateway',
     origin,
     destination,
     travelDate: validatedInput.travelDate,
     ...result.searchTrips,
+  });
+}
+
+export function sanitizeTripSearchOutput(output: unknown): TripSearchToolOutput {
+  const validated = tripSearchOutputSchema.parse(output);
+  const sanitizeLocation = (location: z.infer<typeof locationSchema>) => ({
+    ...location,
+    code: sanitizeUntrustedText(location.code),
+    name: sanitizeUntrustedText(location.name),
+    normalizedName: sanitizeUntrustedText(location.normalizedName),
+  });
+
+  return tripSearchOutputSchema.parse({
+    ...validated,
+    origin: sanitizeLocation(validated.origin),
+    destination: sanitizeLocation(validated.destination),
+    trips: validated.trips.map((trip) => ({
+      ...trip,
+      operatorName: sanitizeUntrustedText(trip.operatorName),
+      vehicleTypeName: sanitizeUntrustedText(trip.vehicleTypeName),
+      originName: sanitizeUntrustedText(trip.originName),
+      destinationName: sanitizeUntrustedText(trip.destinationName),
+      pickupName: sanitizeUntrustedText(trip.pickupName),
+      dropoffName: sanitizeUntrustedText(trip.dropoffName),
+    })),
   });
 }
 
@@ -346,7 +375,15 @@ function validateDateParts(year: number, month: number, day: number): string {
 function cleanLocation(value: string | undefined): string {
   return (value ?? '')
     .replace(/\b(?:không|khong|ko|chứ|chu)\b.*$/iu, '')
-    .replace(/^[,\s]+|[,\s]+$/g, '')
+    .replace(/^[,\s?.!]+|[,\s?.!]+$/g, '')
+    .trim();
+}
+
+function normalizeLocationQueryInput(value: string | undefined): string {
+  return cleanLocation(value)
+    .replace(/^(?:tp|thành phố|thanh pho|tỉnh|tinh)\.?\s*/iu, '')
+    .replace(/^tp\.?$/iu, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

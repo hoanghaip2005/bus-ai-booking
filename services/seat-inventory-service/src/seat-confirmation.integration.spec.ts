@@ -8,7 +8,7 @@ import { SeatInventoryDatabase } from './seat-inventory.database';
 import { SeatInventoryService } from './seat-inventory.service';
 import { SeatStateRepository } from './seat-state.repository';
 
-const tripId = '00000000-0000-4000-8000-000000000702';
+const tripId = randomUUID();
 const namespace = `test:seat-confirmation:v1:${randomUUID()}`;
 const eventChannel = `${namespace}:events`;
 const database = new SeatInventoryDatabase();

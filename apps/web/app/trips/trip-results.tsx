@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { SiteHeader } from '../components/site-header';
 import { SiteFooter } from '../components/site-footer';
+import { readGraphQlResponse } from '../lib/graphql-client';
 import { TripFilters } from './trip-filters';
 import { TripCard, type TripSummary } from './trip-card';
 
@@ -75,7 +76,12 @@ export function TripResults() {
       }),
     })
       .then(async (response) => {
-        const body = (await response.json()) as TripSearchResponse;
+        const body = await readGraphQlResponse<{
+          searchTrips: { trips: TripSummary[]; timezone: string; nearestTravelDates: string[] };
+        }>(
+          response,
+          'Không thể tải danh sách chuyến. Kiểm tra GraphQL Gateway đang chạy.',
+        );
         if (!response.ok || body.errors?.length) {
           throw new Error(body.errors?.[0]?.message ?? 'Không thể tải danh sách chuyến.');
         }

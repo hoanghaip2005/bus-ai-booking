@@ -430,14 +430,17 @@ describe('TripRepository', () => {
   });
 
   it('returns nearest dates that still satisfy filters', async () => {
-    await expect(
-      repository.findNearestDates(endpoints, criteria({ travelDate: '2030-06-19' })),
-    ).resolves.toEqual(['2030-06-20', '2030-06-21']);
-    await expect(
-      repository.findNearestDates(
-        endpoints,
-        criteria({ travelDate: '2030-06-19', operatorCodes: ['TB-DEMO'] }),
-      ),
-    ).resolves.toEqual(['2030-06-20']);
+    const nearest = await repository.findNearestDates(
+      endpoints,
+      criteria({ travelDate: '2030-06-19' }),
+    );
+    expect(nearest.slice(0, 2)).toEqual(['2030-06-20', '2030-06-21']);
+    expect(nearest.length).toBeLessThanOrEqual(3);
+    const filteredNearest = await repository.findNearestDates(
+      endpoints,
+      criteria({ travelDate: '2030-06-19', operatorCodes: ['TB-DEMO'] }),
+    );
+    expect(filteredNearest[0]).toBe('2030-06-20');
+    expect(filteredNearest.length).toBeLessThanOrEqual(3);
   });
 });

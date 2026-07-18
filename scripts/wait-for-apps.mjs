@@ -1,5 +1,6 @@
 const endpoints = [
   'http://127.0.0.1:8080/health',
+  'http://127.0.0.1:4010/health/ready',
   'http://127.0.0.1:8080/gateway-health',
   'http://127.0.0.1:8080/catalog-health',
   'http://127.0.0.1:8080/seat-inventory-health',

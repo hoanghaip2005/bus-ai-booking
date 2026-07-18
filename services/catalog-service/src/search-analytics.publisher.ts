@@ -1,14 +1,28 @@
 import type { SearchPerformedEvent } from '@bus/contracts-events';
-import { logEvent } from '@bus/observability';
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Kafka, logLevel, type Producer } from 'kafkajs';
 
-const SEARCH_TOPIC = 'search-events';
+import { SearchOutboxRepository, type SearchOutboxMessage } from './search-outbox.repository';
 
 @Injectable()
-export class SearchAnalyticsPublisher implements OnModuleDestroy {
+export class SearchAnalyticsPublisher {
+  constructor(
+    @Inject(SearchOutboxRepository) private readonly repository: SearchOutboxRepository,
+  ) {}
+
+  publish(event: SearchPerformedEvent): Promise<void> {
+    return this.repository.enqueue(event);
+  }
+}
+
+export interface SearchOutboxPublisher {
+  publish(message: SearchOutboxMessage): Promise<void>;
+  close(): Promise<void>;
+}
+
+@Injectable()
+export class SearchKafkaOutboxPublisher implements SearchOutboxPublisher {
   private readonly producer: Producer;
-  private publishChain: Promise<void> = Promise.resolve();
   private connectPromise?: Promise<void>;
   private connected = false;
 
@@ -18,58 +32,34 @@ export class SearchAnalyticsPublisher implements OnModuleDestroy {
       .map((broker) => broker.trim())
       .filter(Boolean);
     this.producer = new Kafka({
-      clientId: 'catalog-service',
+      clientId: 'catalog-search-outbox',
       brokers,
       logLevel: logLevel.NOTHING,
       connectionTimeout: 1_000,
-      requestTimeout: 2_000,
-      retry: { retries: 1, initialRetryTime: 100 },
-    }).producer({ allowAutoTopicCreation: true });
+      requestTimeout: 5_000,
+      retry: { retries: 2, initialRetryTime: 100 },
+    }).producer({ allowAutoTopicCreation: true, idempotent: true, maxInFlightRequests: 1 });
   }
 
-  publish(event: SearchPerformedEvent): void {
-    this.publishChain = this.publishChain.then(() => this.send(event));
+  async publish(message: SearchOutboxMessage): Promise<void> {
+    await this.ensureConnected();
+    await this.producer.send({
+      topic: message.channelName,
+      acks: -1,
+      messages: [
+        {
+          key: message.messageKey,
+          value: JSON.stringify(message.payload),
+          headers: message.headers,
+        },
+      ],
+    });
   }
 
-  async onModuleDestroy(): Promise<void> {
-    await this.publishChain;
-    if (this.connected) {
-      await this.producer.disconnect();
-    }
-  }
-
-  private async send(event: SearchPerformedEvent): Promise<void> {
-    try {
-      await this.ensureConnected();
-      await this.producer.send({
-        topic: SEARCH_TOPIC,
-        messages: [
-          {
-            key: event.searchSessionId,
-            value: JSON.stringify(event),
-            headers: {
-              eventType: event.eventType,
-              eventVersion: String(event.eventVersion),
-              traceId: event.traceId,
-            },
-          },
-        ],
-      });
-      logEvent({
-        service: 'catalog-service',
-        event: 'catalog.search-performed.published',
-        message: 'Search analytics fact published.',
-        fields: { eventId: event.eventId, topic: SEARCH_TOPIC },
-      });
-    } catch {
-      logEvent({
-        service: 'catalog-service',
-        level: 'error',
-        event: 'catalog.search-performed.publish-failed',
-        message: 'Search analytics fact could not be published.',
-        fields: { eventId: event.eventId, topic: SEARCH_TOPIC },
-      });
-    }
+  async close(): Promise<void> {
+    if (this.connected) await this.producer.disconnect();
+    this.connected = false;
+    this.connectPromise = undefined;
   }
 
   private async ensureConnected(): Promise<void> {

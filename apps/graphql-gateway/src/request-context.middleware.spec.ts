@@ -28,6 +28,7 @@ describe('RequestContextMiddleware', () => {
       'x-checkout-session-id',
       '00000000-0000-4000-8000-000000000902',
     );
+    expect(response.setHeader).toHaveBeenCalledWith('x-gateway-instance', 'gateway-4000');
     expect(next).toHaveBeenCalledOnce();
   });
 

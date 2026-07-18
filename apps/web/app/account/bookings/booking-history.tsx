@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { authenticatedHeaders, authStorageKey, getStoredAccessToken } from '../../lib/auth-session';
 import { displayOperatorName } from '../../lib/display';
+import { BookingTicketDetails } from './booking-ticket-details';
 
 interface BookingHistoryItem {
   id: string;
@@ -145,6 +146,7 @@ export function BookingHistory() {
                   <dd>{booking.totalPriceVnd.toLocaleString('vi-VN')} ₫</dd>
                 </div>
               </dl>
+              {canViewTicket(booking) && <BookingTicketDetails bookingId={booking.id} />}
               {canCancel(booking) && (
                 <div className="booking-cancellation">
                   <p>Được hủy trước giờ khởi hành; ghế sẽ được mở bán lại.</p>
@@ -173,6 +175,10 @@ export function BookingHistory() {
       )}
     </section>
   );
+}
+
+function canViewTicket(booking: BookingHistoryItem): boolean {
+  return ['PAID', 'TICKET_ISSUED', 'CHECKED_IN', 'COMPLETED'].includes(booking.status);
 }
 
 function canCancel(booking: BookingHistoryItem): boolean {

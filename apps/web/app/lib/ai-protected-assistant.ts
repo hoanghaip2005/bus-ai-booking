@@ -49,12 +49,12 @@ const policyOutputSchema = z.object({
 
 const policies = {
   cancellation: {
-    title: 'Chính sách hủy vé nội bộ',
+    title: 'Chính sách đổi/hủy vé nội bộ',
     version: '1.0',
     effectiveDate: '2026-07-15',
     resourceUri: 'bus://policy/cancellation' as const,
     content:
-      'Đơn ở trạng thái đã thanh toán hoặc đã phát hành vé được hủy khi thời điểm yêu cầu còn trước giờ khởi hành. Hệ thống giải phóng ghế; hoàn tiền chưa được hỗ trợ.',
+      'Đổi chuyến trực tiếp chưa được hỗ trợ; hành khách cần hủy vé đủ điều kiện và đặt chuyến mới. Đơn ở trạng thái đã thanh toán hoặc đã phát hành vé được hủy khi thời điểm yêu cầu còn trước giờ khởi hành. Hệ thống giải phóng ghế; hoàn tiền chưa được hỗ trợ.',
   },
   checkin: {
     title: 'Hướng dẫn check-in nội bộ',
@@ -74,6 +74,7 @@ interface ToolContext {
 export type ProtectedAssistantPlan =
   | { kind: 'booking'; input?: z.infer<typeof bookingLookupSchema>; refusal?: string }
   | { kind: 'policy'; input: z.infer<typeof policyInputSchema> }
+  | { kind: 'guidance'; answer: string }
   | { kind: 'safety'; refusal: string };
 
 export function assessPromptSafety(message: string):
@@ -122,6 +123,28 @@ export function assessPromptSafety(message: string):
 
 export function parseProtectedQuestion(message: string): ProtectedAssistantPlan | undefined {
   const compact = message.trim();
+  const asciiCompact = compact
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/đ/giu, 'd');
+  if (
+    /(?:hướng dẫn|huong dan|các bước|cac buoc|làm sao|lam sao|cách|cach).*?(?:đặt|dat|mua)\s+vé/iu.test(
+      compact,
+    )
+  ) {
+    return {
+      kind: 'guidance',
+      answer: [
+        'Các bước đặt vé trên Bến Việt:',
+        '1. Tìm chuyến bằng điểm đi, điểm đến và ngày khởi hành.',
+        '2. Mở chuyến phù hợp, xem lịch trình rồi chọn ghế còn trống.',
+        '3. Giữ ghế trong 5 phút và nhập thông tin liên hệ, hành khách.',
+        '4. Chọn tiếp tục thanh toán và hoàn tất bước thanh toán mô phỏng.',
+        '5. Khi vé được phát hành, khách đã đăng nhập mở “Vé của tôi” để xem QR, HTML hoặc tải PDF.',
+        '6. Khách đặt vé không đăng nhập có thể tra cứu bằng đúng mã booking và email đã dùng.',
+      ].join('\n'),
+    };
+  }
   if (/\b(?:booking|đặt vé|dat ve|mã vé|ma ve|trạng thái|trang thai)\b/iu.test(compact)) {
     const bookingCode = compact.match(/\bBV-\d{4}-[A-Z0-9]{10}\b/i)?.[0]?.toUpperCase();
     const email = compact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
@@ -135,7 +158,7 @@ export function parseProtectedQuestion(message: string): ProtectedAssistantPlan 
     return { kind: 'booking', input: bookingLookupSchema.parse({ bookingCode, email }) };
   }
 
-  if (/\b(?:hủy|huy|đổi vé|doi ve|hoàn vé|hoan ve)\b/iu.test(compact)) {
+  if (/\b(?:huy|doi ve|hoan ve)\b/iu.test(asciiCompact)) {
     return { kind: 'policy', input: { policy: 'cancellation' } };
   }
   if (/\b(?:check[ -]?in|lên xe|len xe|mã qr|ma qr)\b/iu.test(compact)) {
@@ -192,6 +215,7 @@ export function createPolicyTool() {
 export function createProtectedLocalModel(plan: ProtectedAssistantPlan) {
   if (plan.kind === 'safety') return createStaticLocalModel(plan.refusal);
   if (plan.kind === 'booking' && plan.refusal) return createStaticLocalModel(plan.refusal);
+  if (plan.kind === 'guidance') return createStaticLocalModel(plan.answer);
   const toolName = plan.kind === 'booking' ? 'getBookingStatus' : 'getPolicy';
   const input = plan.input;
   return new MockLanguageModelV3({
@@ -238,7 +262,7 @@ function createStaticLocalModel(answer: string) {
 }
 
 export function redactAssistantText(value: string): string {
-  return stripControlCharacters(value, '')
+  return stripControlCharacters(value, '', true)
     .replace(/bearer\s+[A-Za-z0-9._~+/-]+=*/giu, '[token đã ẩn]')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, '[email đã ẩn]')
     .replace(/(?<!\d)(?:\+?84|0)\d{8,10}(?!\d)/g, '[số điện thoại đã ẩn]');
@@ -259,9 +283,14 @@ export function sanitizeUntrustedText(value: string): string {
   return compact.slice(0, 120);
 }
 
-function stripControlCharacters(value: string, replacement: string): string {
+function stripControlCharacters(
+  value: string,
+  replacement: string,
+  preserveFormatting = false,
+): string {
   return Array.from(value, (character) => {
     const code = character.charCodeAt(0);
+    if (preserveFormatting && (code === 9 || code === 10 || code === 13)) return character;
     return code < 32 || code === 127 ? replacement : character;
   }).join('');
 }
